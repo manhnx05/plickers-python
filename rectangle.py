@@ -75,7 +75,8 @@ card_list=pickle.loads(f, encoding='latin1')
 
 
 #############main####################
-cap = cv2.VideoCapture(0)
+print("Dang khoi dong Camera (CAP_DSHOW)... Bam phim 'q' tren cua so Camera de thoat.")
+cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
 
 csv_filename = "ket_qua.csv"
 try:
@@ -88,7 +89,6 @@ except Exception:
 scanned_cards = {}
 COOLDOWN_TIME = 5.0 # Mức chặn thẻ điền đè liên tiếp: 5 giây
 
-print("Dang khoi dong Camera... Bam phim 'q' tren cua so Camera de thoat.")
 while True:
     ret, frame = cap.read()
     if not ret:
