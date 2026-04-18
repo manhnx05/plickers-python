@@ -88,11 +88,11 @@ except Exception:
 scanned_cards = {}
 COOLDOWN_TIME = 5.0 # Mức chặn thẻ điền đè liên tiếp: 5 giây
 
-print("Đang khởi động Camera... Bấm phím 'q' trên cửa sổ Camera để thoát.")
+print("Dang khoi dong Camera... Bam phim 'q' tren cua so Camera de thoat.")
 while True:
     ret, frame = cap.read()
     if not ret:
-        print("Không thể kết nối với Camera!")
+        print("Khong the ket noi voi Camera!")
         break
         
     img = frame.copy()
@@ -149,9 +149,9 @@ while True:
                             time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                             with open(csv_filename, mode='a', newline='', encoding='utf-8') as f:
                                 csv.writer(f).writerow([time_str, student_no, student_ans, str(card_id)])
-                            print(f"[THÀNH CÔNG] Đã lưu thẻ {student_no} đáp án {student_ans} lúc {time_str}")
+                            print(f"[THANH CONG] Da luu the {student_no} dap an {student_ans} luc {time_str}")
                         except Exception as e:
-                            print(f"[LỖI] Không thể lưu file CSV: {e}")
+                            print(f"[LOI] Khong the luu file CSV: {e}")
 
                     cv2.drawContours(frame, [cnt], -1, (0, 255, 0), 3)
                     x, y = cnt[:,:,0].min(), cnt[:,0,:].min()
