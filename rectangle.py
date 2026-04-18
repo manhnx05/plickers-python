@@ -43,7 +43,7 @@ def card_check(result):
 
     num = 0
     check = 0
-    print('the global num',CARD_NUM,'the card',card_array)
+    # print('the global num',CARD_NUM,'the card',card_array)
     for i in card_data:
         # print(i)
         if np.array_equal(i, card_array):
@@ -72,50 +72,64 @@ card_list=pickle.loads(f, encoding='latin1')
 
 
 #############main####################
-img = cv2.imread('./card_file/001-B.jpg')
-w,h,s=img.shape
-print(img.shape)
-img=cv2.resize(img,(int(h/2.0),int(w/2.0)))
-###模糊###
-img = cv2.GaussianBlur(img,(3,3),0)
+cap = cv2.VideoCapture(0)
 
-###描边###
-canny = cv2.Canny(img, 40, 170)
+print("Đang khởi động Camera... Bấm phím 'q' trên cửa sổ Camera để thoát.")
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        print("Không thể kết nối với Camera!")
+        break
+        
+    img = frame.copy()
+    
+    ### Blur ###
+    blur_img = cv2.GaussianBlur(img, (3, 3), 0)
+    ### Canny Edge ###
+    canny = cv2.Canny(blur_img, 40, 170)
+    ### Grayscale ###
+    gray = cv2.cvtColor(blur_img, cv2.COLOR_BGR2GRAY)
+    ### Threshold ###
+    ret_thresh, thresh = cv2.threshold(gray, 99, 255, 1)
 
-###转换成灰度图###
-gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
-###转换成黑白图片###
-ret, thresh = cv2.threshold(gray, 99, 255, 1)
+    ### Find Contours ###
+    contours, hierarchy = cv2.findContours(canny, 2, 1)
 
-###寻找边框###
-contours, h = cv2.findContours(canny,2,1)
+    for cnt in contours:
+        if len(cnt) > 50:
+            approx = cv2.approxPolyDP(cnt, 0.01 * cv2.arcLength(cnt, True), True)
+            if len(approx) > 4:
+                card_id = 0
+                if cnt[:,0,:].max() - cnt[:,0,:].min() > cnt[:,:,0].max() - cnt[:,:,0].min():
+                    diff = cnt[:,:,0].max() - cnt[:,:,0].min()
+                    card = thresh[cnt[:,0,:].min():cnt[:,0,:].min()+diff, cnt[:,:,0].min():cnt[:,:,0].max()]
+                    if len(card) > 10 and 100 < np.average(card) < 230:
+                        card_id = card_check(card)
+                    
+                    if not card_id:
+                        card = thresh[abs(cnt[:,0,:].max()-diff):cnt[:,0,:].max(), cnt[:,:,0].min():cnt[:,:,0].max()]
+                        if len(card) > 10 and 100 < np.average(card) < 230:
+                            card_id = card_check(card)
+                else:
+                    diff = cnt[:,0,:].max() - cnt[:,0,:].min()
+                    card = thresh[cnt[:,0,:].min():cnt[:,0,:].max(), cnt[:,:,0].min():cnt[:,:,0].min()+diff]
+                    if len(card) > 10 and 100 < np.average(card) < 230:
+                        card_id = card_check(card)
+                        
+                    if not card_id:
+                        card = thresh[cnt[:,0,:].min():cnt[:,0,:].max(), cnt[:,:,0].max()-diff:cnt[:,:,0].max()]
+                        if len(card) > 10 and 100 < np.average(card) < 230:
+                            card_id = card_check(card)
+                            
+                # Nếu tìm thấy định dạng thẻ, vẽ viền hiển thị lên màn hình
+                if card_id:
+                    cv2.drawContours(frame, [cnt], -1, (0, 255, 0), 3)
+                    x, y = cnt[:,:,0].min(), cnt[:,0,:].min()
+                    cv2.putText(frame, str(card_id), (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
-for cnt in contours:
-    if len(cnt) >50:
-        #print 'now',cnt
-        approx = cv2.approxPolyDP(cnt, 0.01 * cv2.arcLength(cnt, True), True)
+    cv2.imshow("Plickers Scanner - Nhan 'q' de thoat", frame)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
 
-        if len(approx) > 4:
-
-            #maybe_card=thresh[cnt[:,0,:].min():cnt[:,0,:].max(),cnt[:,:,0].min():cnt[:,:,0].max()]
-            #maybe_canny=canny[cnt[:,0,:].min():cnt[:,0,:].max(),cnt[:,:,0].min():cnt[:,:,0].max()]
-            if cnt[:,0,:].max() - cnt[:,0,:].min() >cnt[:,:,0].max()- cnt[:,:,0].min():
-                diff=cnt[:,:,0].max()-cnt[:,:,0].min()
-                card=thresh[cnt[:,0,:].min():cnt[:,0,:].min()+diff, cnt[:,:,0].min():cnt[:,:,0].max()  ]
-                if  len(card)>10 and np.average(card)<230 and np.average(card)>100:
-                    card_check(card)
-                card=thresh[abs(cnt[:,0,:].max()-diff):cnt[:,0,:].max(), cnt[:,:,0].min():cnt[:,:,0].max()  ]
-                if  len(card)>10 and np.average(card)<230 and np.average(card)>100:
-                    card_check(card)
-            else:
-
-                diff=cnt[:,0,:].max()-cnt[:,0,:].min()
-                card=thresh[cnt[:,0,:].min():cnt[:,0,:].max(), cnt[:,:,0].min():cnt[:,:,0].min()+diff  ]
-                if  len(card)>10 and np.average(card)<230 and np.average(card)>100:
-                    card_check(card)
-                card=thresh[cnt[:,0,:].min():cnt[:,0,:].max(), cnt[:,:,0].max()-diff:cnt[:,:,0].max()  ]
-                if  len(card)>10 and np.average(card)<230 and np.average(card)>100:
-                    card_check(card)
-
-
-
+cap.release()
+cv2.destroyAllWindows()
