@@ -19,8 +19,8 @@ def card_check(result):
     #print 'check',wigth,higth
     for y in range(1, 6):
         for x in range(1, 6):
-            # print 'con',count,y,x
-            # print (higth)* (y/5.0)
+            # print('con',count,y,x)
+            # print((higth)* (y/5.0))
             if y == 1 and x == 1:
                 crop = result[0:int(wigth * (y / 5.0)), 0:int(wigth * (x / 5.0))]
             elif y == 1:
@@ -43,37 +43,38 @@ def card_check(result):
 
     num = 0
     check = 0
-    print 'the global num',CARD_NUM,'the card',card_array
+    print('the global num',CARD_NUM,'the card',card_array)
     for i in card_data:
-        # print i
+        # print(i)
         if np.array_equal(i, card_array):
             check = 1
             break
         num += 1
     if check:
-        print 'the global num',CARD_NUM,num, 'bingo',card_list[num]
+        print('the global num',CARD_NUM,num, 'bingo',card_list[num])
         return card_list[num]
     CARD_NUM+=1
     return 0
 
+import sys
 #####读取卡片的矩阵信息#######
-np.set_printoptions(threshold='nan')
+np.set_printoptions(threshold=sys.maxsize)
 
-fn= '/home/project/camera/card.data'
+fn= './card.data'
 f=open(fn,'rb').read()
-card_data=pickle.loads(f)
-fn= '/home/project/camera/card.list'
+card_data=pickle.loads(f, encoding='latin1')
+fn= './card.list'
 f=open(fn,'rb').read()
-card_list=pickle.loads(f)
-#print len(card_list)
-#print card_list
-#print card_data
+card_list=pickle.loads(f, encoding='latin1')
+#print(len(card_list))
+#print(card_list)
+#print(card_data)
 
 
 #############main####################
 img = cv2.imread('./senshoot/DSC_0570.JPG')
 w,h,s=img.shape
-print img.shape
+print(img.shape)
 img=cv2.resize(img,(int(h/2.0),int(w/2.0)))
 ###模糊###
 img = cv2.GaussianBlur(img,(3,3),0)
