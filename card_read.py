@@ -18,7 +18,7 @@ def card_read(img):
     #gray = cv2.imread('img.jpg', 0)
     ret, thresh = cv2.threshold(gray, 127, 255, 1)
     #ret, thresh = cv2.threshold(gray, 127, 255, 1)
-    nimg, contours, h = cv2.findContours(thresh,2,1)
+    contours, h = cv2.findContours(thresh,2,1)
     #nimg, contours, h = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
     for cnt in contours:
         if len(cnt) >500:

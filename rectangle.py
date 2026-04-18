@@ -88,7 +88,7 @@ gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
 ret, thresh = cv2.threshold(gray, 99, 255, 1)
 
 ###寻找边框###
-nimg, contours, h = cv2.findContours(canny,2,1)
+contours, h = cv2.findContours(canny,2,1)
 
 for cnt in contours:
     if len(cnt) >50:
