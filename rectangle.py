@@ -5,6 +5,9 @@ from my_math import  Math
 from time import sleep
 import pickle
 import sys
+import csv
+from datetime import datetime
+import time
 
 global CARD_NUM
 
@@ -74,6 +77,17 @@ card_list=pickle.loads(f, encoding='latin1')
 #############main####################
 cap = cv2.VideoCapture(0)
 
+csv_filename = "ket_qua.csv"
+try:
+    with open(csv_filename, mode='a', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerow(["Thoi_Gian", "Ma_Hoc_Sinh", "Dap_An_Chon", "Day_Du"])
+except Exception:
+    pass
+
+scanned_cards = {}
+COOLDOWN_TIME = 5.0 # Mức chặn thẻ điền đè liên tiếp: 5 giây
+
 print("Đang khởi động Camera... Bấm phím 'q' trên cửa sổ Camera để thoát.")
 while True:
     ret, frame = cap.read()
@@ -121,8 +135,24 @@ while True:
                         if len(card) > 10 and 100 < np.average(card) < 230:
                             card_id = card_check(card)
                             
-                # Nếu tìm thấy định dạng thẻ, vẽ viền hiển thị lên màn hình
+                # Nếu tìm thấy định dạng thẻ, lưu vào CSV và vẽ hiển thị
                 if card_id:
+                    current_time = time.time()
+                    if card_id not in scanned_cards or (current_time - scanned_cards[card_id] > COOLDOWN_TIME):
+                        scanned_cards[card_id] = current_time
+                        try:
+                            # Parse format: e.g. "015-A" -> "015", "A"
+                            part = str(card_id).split('-')
+                            student_no = part[0]
+                            student_ans = part[1] if len(part)>1 else ""
+                            
+                            time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            with open(csv_filename, mode='a', newline='', encoding='utf-8') as f:
+                                csv.writer(f).writerow([time_str, student_no, student_ans, str(card_id)])
+                            print(f"[THÀNH CÔNG] Đã lưu thẻ {student_no} đáp án {student_ans} lúc {time_str}")
+                        except Exception as e:
+                            print(f"[LỖI] Không thể lưu file CSV: {e}")
+
                     cv2.drawContours(frame, [cnt], -1, (0, 255, 0), 3)
                     x, y = cnt[:,:,0].min(), cnt[:,0,:].min()
                     cv2.putText(frame, str(card_id), (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
