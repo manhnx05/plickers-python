@@ -72,7 +72,7 @@ card_list=pickle.loads(f, encoding='latin1')
 
 
 #############main####################
-img = cv2.imread('./senshoot/DSC_0570.JPG')
+img = cv2.imread('./card_file/001-B.jpg')
 w,h,s=img.shape
 print(img.shape)
 img=cv2.resize(img,(int(h/2.0),int(w/2.0)))
