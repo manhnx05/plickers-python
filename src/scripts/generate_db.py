@@ -1,10 +1,17 @@
 import cv2
 import numpy as np
-from my_math import  Math
 import os
 import sys
 import pickle
-from detector import PlickersDetector
+
+# Ensure Python can load modules from the src folder
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
+# It used 'my_math.py' originally, now it's src.core.utils
+from src.core.utils import Math
+from src.core.detector import PlickersDetector
 
 detector = PlickersDetector()
 
@@ -26,12 +33,13 @@ def cv_card_read(img):
     return None
 
 if __name__ == '__main__':
-    file_list =os.listdir('./card_file/')
+    img_dir = os.path.join(project_root, 'data', 'samples')
+    file_list = os.listdir(img_dir)
     card_data=[]
     card_list=[]
     for file in file_list:
         if not file.endswith('.jpg'): continue
-        img = cv2.imread('./card_file/'+file)
+        img = cv2.imread(os.path.join(img_dir, file))
         file_name=file.split('.')[0]
         file_num,option=file_name.split('-')
 
@@ -66,10 +74,10 @@ if __name__ == '__main__':
         card_list.extend(file_num+'-'+i for i in ['A','B','C','D'])
         del img,file_name,file_num,option,card_array
         
-    fn= 'card.data'
+    fn = os.path.join(project_root, 'data', 'database', 'card.data')
     with open(fn, 'wb') as f:
         pickle.dump(card_data, f)
 
-    fl= 'card.list'
+    fl = os.path.join(project_root, 'data', 'database', 'card.list')
     with open(fl, 'wb') as ff:
         pickle.dump(card_list, ff)

@@ -1,15 +1,21 @@
 import os
 import sys
 import cv2
-from detector import PlickersDetector
+
+# Ensure Python can load modules from the src folder
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
+from src.core.detector import PlickersDetector
 
 # Set proper utf-8 encoding for printing to Windows terminal
 sys.stdout.reconfigure(encoding='utf-8')
 
 def main():
-    detector = PlickersDetector(data_path='./card.data', list_path='./card.list')
+    detector = PlickersDetector()
     
-    img_dir = './card_file/'
+    img_dir = os.path.join(project_root, 'data', 'samples')
     if not os.path.exists(img_dir):
         print(f"[CẢNH BÁO] Không tìm thấy thư mục: {img_dir}")
         return

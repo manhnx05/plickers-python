@@ -4,7 +4,13 @@ import pickle
 import os
 
 class PlickersDetector:
-    def __init__(self, data_path='./card.data', list_path='./card.list'):
+    def __init__(self, data_path=None, list_path=None):
+        if data_path is None or list_path is None:
+            # Base directory is plickers-python
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            data_path = os.path.join(project_root, 'data', 'database', 'card.data')
+            list_path = os.path.join(project_root, 'data', 'database', 'card.list')
+            
         try:
             with open(data_path, 'rb') as f:
                 self.card_data = pickle.loads(f.read(), encoding='latin1')

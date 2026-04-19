@@ -1,9 +1,17 @@
 # -*-coding:utf-8-*-
 import cv2
 import csv
+import os
+import sys
 from datetime import datetime
 import time
-from detector import PlickersDetector
+
+# Ensure Python can load modules from the src folder
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
+from src.core.detector import PlickersDetector
 
 # Initialize the detector
 detector = PlickersDetector()
@@ -12,13 +20,13 @@ detector = PlickersDetector()
 print("Dang khoi dong Camera (CAP_DSHOW)... Bam phim 'q' tren cua so Camera de thoat.")
 cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
 
-csv_filename = "ket_qua.csv"
+csv_filename = os.path.join(project_root, "data", "output", "ket_qua.csv")
 try:
     with open(csv_filename, mode='a', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
         writer.writerow(["Thoi_Gian", "Ma_Hoc_Sinh", "Dap_An_Chon", "Day_Du"])
-except Exception:
-    pass
+except Exception as e:
+    print(f"Loi tao file CSV: {e}")
 
 scanned_cards = {}
 COOLDOWN_TIME = 5.0 # Mức chặn thẻ điền đè liên tiếp: 5 giây
