@@ -3,6 +3,7 @@ import cv2
 import csv
 import os
 import sys
+import numpy as np
 from datetime import datetime
 import time
 
@@ -19,6 +20,12 @@ detector = PlickersDetector()
 #############main####################
 print("Dang khoi dong Camera (CAP_DSHOW)... Bam phim 'q' tren cua so Camera de thoat.")
 cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+
+# Tối ưu hóa FPS quét thực tế bằng cách hạ độ phân giải capture để pipeline Canny/Blur chạy mượt hơn trên CPU
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 800)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 600)
+# Cố định FPS buffer ở mức mượt
+cap.set(cv2.CAP_PROP_FPS, 30)
 
 csv_filename = os.path.join(project_root, "data", "output", "ket_qua.csv")
 try:
@@ -89,6 +96,12 @@ while True:
 
     # Draw Roll-Call HUD on Screen
     cv2.rectangle(overlay, (10, 10), (280, 40 + len(scanned_cards) * 30), (0, 0, 0), -1)
+    
+    # Calculate and Draw FPS counter on top right
+    process_time = time.time() - current_time
+    fps = 1.0 / process_time if process_time > 0 else 30
+    cv2.putText(overlay, f"FPS: {int(fps)}", (frame.shape[1] - 120, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+    
     cv2.addWeighted(overlay, 0.5, frame, 0.5, 0, frame)
     
     cv2.putText(frame, "--- ĐIỂM DANH ---", (20, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
