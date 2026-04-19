@@ -30,14 +30,23 @@ def main():
         if img is None:
             continue
             
-        card_id, cnt = detector.process_image(img)
+        found_cards = detector.process_image(img)
         expected_id = file.split('.')[0]
         
-        if card_id == expected_id:
-            print(f"=> Ảnh test mẫu {file:12} | Kết quả phân tích: BINGO >>> {str(card_id)}")
+        # Check if the expected card is within the found_cards
+        found_expected = False
+        misclassified = []
+        for card_id, cnt in found_cards:
+            if card_id == expected_id:
+                found_expected = True
+            else:
+                misclassified.append(str(card_id))
+                
+        if found_expected:
+            print(f"=> Ảnh test mẫu {file:12} | Kết quả phân tích: BINGO >>> {expected_id}")
             found_count += 1
-        elif card_id:
-            print(f"=> Ảnh test mẫu {file:12} | Kết quả phân tích: SO KHỚP SAI (Nhận nhầm thành {str(card_id)})")
+        elif len(misclassified) > 0:
+            print(f"=> Ảnh test mẫu {file:12} | Kết quả phân tích: SO KHỚP SAI (Nhận nhầm thành {','.join(misclassified)})")
         else:
             print(f"=> Ảnh test mẫu {file:12} | Kết quả phân tích: THẤT BẠI.")
 
