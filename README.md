@@ -111,11 +111,17 @@ Cần thiết khi thêm ảnh mẫu mới vào `data/samples/`.
 ### 5. In thẻ PDF
 
 ```bash
-# PDF chuẩn Plickers (80mm x 80mm, 6 thẻ/trang)
-python src/scripts/generate_plickers_cards.py
+# THẺ SẠCH - Chữ và số BÊN NGOÀI vùng quét (KHUYẾN NGHỊ) ⭐⭐⭐⭐⭐
+python src/scripts/generate_clean_plickers.py
+# hoặc: make generate-clean
 
 # PDF Premium với hướng dẫn chi tiết (2 thẻ/trang, chất lượng cao)
 python src/scripts/generate_premium_plickers.py
+# hoặc: make generate-premium
+
+# PDF chuẩn Plickers (80mm x 80mm, 6 thẻ/trang)
+python src/scripts/generate_plickers_cards.py
+# hoặc: make generate-cards
 
 # PDF từ database matrix (legacy)
 python src/scripts/generate_plickers_pdf.py
@@ -124,7 +130,7 @@ python src/scripts/generate_plickers_pdf.py
 python src/scripts/generate_pdf.py
 ```
 
-**Khuyến nghị:** Sử dụng `generate_premium_plickers.py` để in thẻ chất lượng cao với hướng dẫn đầy đủ.
+**⭐ Khuyến nghị:** Sử dụng `generate_clean_plickers.py` - Chữ và số nằm bên ngoài, chỉ quét ma trận đen trắng bên trong!
 
 ---
 
