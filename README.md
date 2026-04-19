@@ -111,12 +111,20 @@ Cần thiết khi thêm ảnh mẫu mới vào `data/samples/`.
 ### 5. In thẻ PDF
 
 ```bash
-# PDF từ database matrix (đẹp hơn, khuyến nghị)
+# PDF chuẩn Plickers (80mm x 80mm, 6 thẻ/trang)
+python src/scripts/generate_plickers_cards.py
+
+# PDF Premium với hướng dẫn chi tiết (2 thẻ/trang, chất lượng cao)
+python src/scripts/generate_premium_plickers.py
+
+# PDF từ database matrix (legacy)
 python src/scripts/generate_plickers_pdf.py
 
 # PDF từ ảnh mẫu (xem trước ảnh thật)
 python src/scripts/generate_pdf.py
 ```
+
+**Khuyến nghị:** Sử dụng `generate_premium_plickers.py` để in thẻ chất lượng cao với hướng dẫn đầy đủ.
 
 ---
 
@@ -136,6 +144,35 @@ python src/scripts/generate_pdf.py
 | POST | `/api/reveal` | Hiện đáp án + lưu CSV |
 | POST | `/api/reset` | Reset phiên mới |
 | POST | `/api/reload_data` | Reload JSON không restart server |
+
+---
+
+---
+
+## 📐 Cấu trúc Thẻ Plickers
+
+### Nguyên lý hoạt động
+
+Mỗi thẻ Plickers là một ma trận 5×5 với các đặc điểm:
+
+1. **Ma trận nhị phân 5×5**: Mỗi ô có thể là đen (1) hoặc trắng (0)
+2. **4 cạnh = 4 đáp án**: Mỗi cạnh tương ứng với A, B, C, D
+3. **Xoay chữ cái**: Chữ cái được xoay theo hướng tương ứng
+4. **ID duy nhất**: Mỗi thẻ có số riêng (1-34) được mã hóa trong pattern
+
+### Cách sử dụng thẻ
+
+- **Chọn đáp án A**: Giơ thẻ sao cho chữ **A ở phía TRÊN**
+- **Chọn đáp án B**: Xoay thẻ 90° phải, chữ **B ở phía TRÊN**  
+- **Chọn đáp án C**: Xoay thẻ 180°, chữ **C ở phía TRÊN**
+- **Chọn đáp án D**: Xoay thẻ 90° trái, chữ **D ở phía TRÊN**
+
+### Thuật toán nhận diện
+
+1. **Phát hiện contour**: Tìm các vùng có độ tương phản cao
+2. **Giải mã ma trận**: Phân tích pattern 5×5 để xác định ID
+3. **Xác định hướng**: Dựa vào cạnh nào ở trên để biết đáp án
+4. **Đối chiếu database**: Match với database để lấy thông tin học sinh
 
 ---
 
