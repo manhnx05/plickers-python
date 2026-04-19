@@ -111,26 +111,24 @@ Cần thiết khi thêm ảnh mẫu mới vào `data/samples/`.
 ### 5. In thẻ PDF
 
 ```bash
-# THẺ SẠCH - Chữ và số BÊN NGOÀI vùng quét (KHUYẾN NGHỊ) ⭐⭐⭐⭐⭐
+# THẺ ĐƠN - 1 thẻ/trang, KHÔNG chồng chéo (KHUYẾN NGHỊ CAO NHẤT) ⭐⭐⭐⭐⭐
+python src/scripts/generate_single_card.py
+# hoặc: make generate-single
+
+# THẺ SẠCH - Chữ và số BÊN NGOÀI vùng quét, 6 thẻ/trang
 python src/scripts/generate_clean_plickers.py
 # hoặc: make generate-clean
 
-# PDF Premium với hướng dẫn chi tiết (2 thẻ/trang, chất lượng cao)
+# PDF Premium với hướng dẫn chi tiết (2 thẻ/trang)
 python src/scripts/generate_premium_plickers.py
 # hoặc: make generate-premium
 
-# PDF chuẩn Plickers (80mm x 80mm, 6 thẻ/trang)
+# PDF chuẩn Plickers (6 thẻ/trang)
 python src/scripts/generate_plickers_cards.py
 # hoặc: make generate-cards
-
-# PDF từ database matrix (legacy)
-python src/scripts/generate_plickers_pdf.py
-
-# PDF từ ảnh mẫu (xem trước ảnh thật)
-python src/scripts/generate_pdf.py
 ```
 
-**⭐ Khuyến nghị:** Sử dụng `generate_clean_plickers.py` - Chữ và số nằm bên ngoài, chỉ quét ma trận đen trắng bên trong!
+**⭐⭐⭐ Khuyến nghị cao nhất:** `generate_single_card.py` - 1 thẻ/trang, thẻ lớn 120mm, chữ số cách xa, KHÔNG bị chồng chéo!
 
 ---
 

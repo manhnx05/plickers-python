@@ -1,4 +1,4 @@
-.PHONY: help install install-dev test test-coverage lint format clean run-web run-scanner evaluate generate-db generate-cards generate-premium generate-clean
+.PHONY: help install install-dev test test-coverage lint format clean run-web run-scanner evaluate generate-db generate-single generate-clean generate-cards generate-premium
 
 help:
 	@echo "Plickers Python - Available Commands:"
@@ -13,7 +13,8 @@ help:
 	@echo "  make run-scanner      - Start standalone scanner"
 	@echo "  make evaluate         - Evaluate detection accuracy"
 	@echo "  make generate-db      - Generate card database"
-	@echo "  make generate-clean   - Generate CLEAN Plickers PDF (RECOMMENDED)"
+	@echo "  make generate-single  - Generate 1 card/page PDF (BEST - No overlap)"
+	@echo "  make generate-clean   - Generate CLEAN Plickers PDF (6 cards/page)"
 	@echo "  make generate-cards   - Generate standard Plickers PDF"
 	@echo "  make generate-premium - Generate premium Plickers PDF"
 
@@ -54,6 +55,9 @@ evaluate:
 
 generate-db:
 	python src/scripts/generate_db.py
+
+generate-single:
+	python src/scripts/generate_single_card.py
 
 generate-clean:
 	python src/scripts/generate_clean_plickers.py
