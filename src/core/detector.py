@@ -1,10 +1,26 @@
+"""
+Plickers Card Detector Module
+Provides computer vision-based detection and recognition of Plickers cards.
+"""
 import cv2
 import numpy as np
 import pickle
 import os
+from typing import List, Tuple, Optional
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class PlickersDetector:
-    def __init__(self, data_path=None, list_path=None):
+    def __init__(self, data_path: Optional[str] = None, list_path: Optional[str] = None) -> None:
+        """
+        Initialize Plickers detector with card database.
+        
+        Args:
+            data_path: Path to card.data file (optional)
+            list_path: Path to card.list file (optional)
+        """
         if data_path is None or list_path is None:
             # Base directory is plickers-python
             project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -16,43 +32,65 @@ class PlickersDetector:
                 self.card_data = pickle.loads(f.read(), encoding='latin1')
             with open(list_path, 'rb') as f:
                 self.card_list = pickle.loads(f.read(), encoding='latin1')
+            logger.info(f"Loaded {len(self.card_data)} card matrices from database")
         except Exception as e:
-            print(f"Warning: Could not load card data database: {e}")
+            logger.warning(f"Could not load card data database: {e}")
             self.card_data = []
             self.card_list = []
 
-    def get_card_matrix(self, result_img):
+    # Detection constants
+    GRID_SIZE = 5
+    CELL_INSET_RATIO = 0.15
+    BRIGHTNESS_THRESHOLD = 120
+    MIN_CONTOUR_POINTS = 50
+    MIN_APPROX_POINTS = 4
+    MIN_CARD_SIZE = 10
+    MIN_AVG_BRIGHTNESS = 100
+    MAX_AVG_BRIGHTNESS = 230
+    
+    def get_card_matrix(self, result_img: np.ndarray) -> np.ndarray:
         """
-        Parses the binary cropped image to 5x5 grid and returns the matrix.
+        Parse binary cropped image to 5x5 grid matrix.
+        
+        Args:
+            result_img: Binary image of the card
+            
+        Returns:
+            5x5 numpy array representing the card pattern
         """
         height, width = result_img.shape
         result_img = cv2.resize(result_img, (10 * width, 10 * height))
         height, width = result_img.shape
         
-        card_array = np.zeros([5, 5])
-        for y in range(1, 6):
-            for x in range(1, 6):
-                y_start = int(height * ((y - 1) / 5.0))
-                y_end = int(height * (y / 5.0))
-                x_start = int(width * ((x - 1) / 5.0))
-                x_end = int(width * (x / 5.0))
+        card_array = np.zeros([self.GRID_SIZE, self.GRID_SIZE])
+        for y in range(1, self.GRID_SIZE + 1):
+            for x in range(1, self.GRID_SIZE + 1):
+                y_start = int(height * ((y - 1) / float(self.GRID_SIZE)))
+                y_end = int(height * (y / float(self.GRID_SIZE)))
+                x_start = int(width * ((x - 1) / float(self.GRID_SIZE)))
+                x_end = int(width * (x / float(self.GRID_SIZE)))
                 
-                # Inset by 10% on each side to avoid border noise
-                inset_y = int((y_end - y_start) * 0.15)
-                inset_x = int((x_end - x_start) * 0.15)
+                # Inset by percentage on each side to avoid border noise
+                inset_y = int((y_end - y_start) * self.CELL_INSET_RATIO)
+                inset_x = int((x_end - x_start) * self.CELL_INSET_RATIO)
                 
                 crop = result_img[y_start + inset_y : y_end - inset_y, x_start + inset_x : x_end - inset_x]
 
-                if np.average(crop) > 120:     
+                if np.average(crop) > self.BRIGHTNESS_THRESHOLD:     
                     card_array[y - 1, x - 1] = 0
                 else:
                     card_array[y - 1, x - 1] = 1
         return card_array
 
-    def check_card_matrix(self, result_img):
+    def check_card_matrix(self, result_img: np.ndarray) -> Optional[str]:
         """
-        Parses the binary cropped image to 5x5 grid and matches with the known data.
-        Returns the card text ID if found, otherwise None.
+        Parse binary cropped image and match with known card database.
+        
+        Args:
+            result_img: Binary image of the card
+            
+        Returns:
+            Card text ID if found, None otherwise
         """
         card_array = self.get_card_matrix(result_img)
         for num, i in enumerate(self.card_data):
@@ -60,11 +98,16 @@ class PlickersDetector:
                 return self.card_list[num]
         return None
 
-    def process_image(self, img):
+    def process_image(self, img: np.ndarray) -> List[Tuple[str, np.ndarray]]:
         """
-        Processes an entire BGR image, extracts contours, and attempts to find valid cards.
-        Uses Perspective Transforms and an adaptive search to handle extreme lighting conditions.
-        Returns a list of tuples: [(card_id, cnt), ...]
+        Process entire BGR image and extract valid Plickers cards.
+        Uses adaptive multi-pass detection to handle varying lighting conditions.
+        
+        Args:
+            img: BGR image from camera or file
+            
+        Returns:
+            List of tuples: [(card_id, contour), ...]
         """
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         
@@ -89,32 +132,10 @@ class PlickersDetector:
                 contours, hierarchy = cv2.findContours(canny, 2, 1)
 
                 for cnt in contours:
-                    if len(cnt) > 50:
+                    if len(cnt) > self.MIN_CONTOUR_POINTS:
                         approx = cv2.approxPolyDP(cnt, 0.01 * cv2.arcLength(cnt, True), True)
-                        if len(approx) > 4:
-                            card_id = None
-                            
-                            # Original boundary extraction logic matched against DB generator
-                            if cnt[:,0,:].max() - cnt[:,0,:].min() > cnt[:,:,0].max() - cnt[:,:,0].min():
-                                diff = cnt[:,:,0].max() - cnt[:,:,0].min()
-                                card = thresh[cnt[:,0,:].min():cnt[:,0,:].min()+diff, cnt[:,:,0].min():cnt[:,:,0].max()]
-                                if len(card) > 10 and 100 < np.average(card) < 230:
-                                    card_id = self.check_card_matrix(card)
-                                
-                                if not card_id:
-                                    card = thresh[abs(cnt[:,0,:].max()-diff):cnt[:,0,:].max(), cnt[:,:,0].min():cnt[:,:,0].max()]
-                                    if len(card) > 10 and 100 < np.average(card) < 230:
-                                        card_id = self.check_card_matrix(card)
-                            else:
-                                diff = cnt[:,0,:].max() - cnt[:,0,:].min()
-                                card = thresh[cnt[:,0,:].min():cnt[:,0,:].max(), cnt[:,:,0].min():cnt[:,:,0].min()+diff]
-                                if len(card) > 10 and 100 < np.average(card) < 230:
-                                    card_id = self.check_card_matrix(card)
-                                    
-                                if not card_id:
-                                    card = thresh[cnt[:,0,:].min():cnt[:,0,:].max(), cnt[:,:,0].max()-diff:cnt[:,:,0].max()]
-                                    if len(card) > 10 and 100 < np.average(card) < 230:
-                                        card_id = self.check_card_matrix(card)
+                        if len(approx) > self.MIN_APPROX_POINTS:
+                            card_id = self._extract_card_from_contour(cnt, thresh)
                                         
                             if card_id:
                                 # Deduplicate by tracking the contour area
@@ -123,3 +144,40 @@ class PlickersDetector:
                                     found_cards[card_id] = cnt
         
         return list(found_cards.items())
+    
+    def _extract_card_from_contour(self, cnt: np.ndarray, thresh: np.ndarray) -> Optional[str]:
+        """
+        Extract and identify card from contour.
+        
+        Args:
+            cnt: Contour array
+            thresh: Thresholded image
+            
+        Returns:
+            Card ID if found, None otherwise
+        """
+        card_id = None
+        
+        # Original boundary extraction logic matched against DB generator
+        if cnt[:,0,:].max() - cnt[:,0,:].min() > cnt[:,:,0].max() - cnt[:,:,0].min():
+            diff = cnt[:,:,0].max() - cnt[:,:,0].min()
+            card = thresh[cnt[:,0,:].min():cnt[:,0,:].min()+diff, cnt[:,:,0].min():cnt[:,:,0].max()]
+            if len(card) > self.MIN_CARD_SIZE and self.MIN_AVG_BRIGHTNESS < np.average(card) < self.MAX_AVG_BRIGHTNESS:
+                card_id = self.check_card_matrix(card)
+            
+            if not card_id:
+                card = thresh[abs(cnt[:,0,:].max()-diff):cnt[:,0,:].max(), cnt[:,:,0].min():cnt[:,:,0].max()]
+                if len(card) > self.MIN_CARD_SIZE and self.MIN_AVG_BRIGHTNESS < np.average(card) < self.MAX_AVG_BRIGHTNESS:
+                    card_id = self.check_card_matrix(card)
+        else:
+            diff = cnt[:,0,:].max() - cnt[:,0,:].min()
+            card = thresh[cnt[:,0,:].min():cnt[:,0,:].max(), cnt[:,:,0].min():cnt[:,:,0].min()+diff]
+            if len(card) > self.MIN_CARD_SIZE and self.MIN_AVG_BRIGHTNESS < np.average(card) < self.MAX_AVG_BRIGHTNESS:
+                card_id = self.check_card_matrix(card)
+                
+            if not card_id:
+                card = thresh[cnt[:,0,:].min():cnt[:,0,:].max(), cnt[:,:,0].max()-diff:cnt[:,:,0].max()]
+                if len(card) > self.MIN_CARD_SIZE and self.MIN_AVG_BRIGHTNESS < np.average(card) < self.MAX_AVG_BRIGHTNESS:
+                    card_id = self.check_card_matrix(card)
+        
+        return card_id
