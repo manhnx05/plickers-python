@@ -12,6 +12,7 @@ INFO = "[INFO]"
 
 results = []
 
+
 def check(name, fn):
     try:
         out = fn()
@@ -25,238 +26,266 @@ def check(name, fn):
 
 
 # ─── TEST 1: IMPORTS ──────────────────────────────────────────────────────────
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("  TEST 1: MODULE IMPORTS")
-print("="*60)
+print("=" * 60)
 
-check("import cv2",          lambda: __import__('cv2').__version__)
-check("import numpy",        lambda: __import__('numpy').__version__)
-check("import flask",        lambda: importlib.metadata.version('flask'))
-check("import scipy",        lambda: __import__('scipy').__version__)
+check("import cv2", lambda: __import__("cv2").__version__)
+check("import numpy", lambda: __import__("numpy").__version__)
+check("import flask", lambda: importlib.metadata.version("flask"))
+check("import scipy", lambda: __import__("scipy").__version__)
 
-check("src.core.detector",   lambda: __import__('src.core.detector', fromlist=['PlickersDetector']))
-check("src.core.utils",      lambda: __import__('src.core.utils',    fromlist=['Math']))
-check("src.web.app_web",     lambda: __import__('src.web.app_web',   fromlist=['app']))
-check("src.app (scanner)",   lambda: __import__('src.app',           fromlist=['main']))
-check("src.scripts.evaluate",lambda: __import__('src.scripts.evaluate', fromlist=['main']))
-check("src.scripts.generate_db", lambda: __import__('src.scripts.generate_db', fromlist=['cv_card_read']))
+check("src.core.detector", lambda: __import__("src.core.detector", fromlist=["PlickersDetector"]))
+check("src.core.utils", lambda: __import__("src.core.utils", fromlist=["Math"]))
+check("src.web.app_web", lambda: __import__("src.web.app_web", fromlist=["app"]))
+check("src.app (scanner)", lambda: __import__("src.app", fromlist=["main"]))
+check("src.scripts.evaluate", lambda: __import__("src.scripts.evaluate", fromlist=["main"]))
+check("src.scripts.generate_db", lambda: __import__("src.scripts.generate_db", fromlist=["cv_card_read"]))
 
 
 # ─── TEST 2: DETECTOR & DATABASE ─────────────────────────────────────────────
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("  TEST 2: DETECTOR + DATABASE")
-print("="*60)
+print("=" * 60)
 
 from src.core.detector import PlickersDetector
 
 detector = None
+
+
 def init_detector():
     global detector
     detector = PlickersDetector()
     return f"{len(detector.card_data)} matrices, {len(detector.card_list)} IDs"
 
+
 check("PlickersDetector init", init_detector)
+
 
 def check_db_integrity():
     assert len(detector.card_data) == len(detector.card_list), "card_data / card_list length mismatch"
     assert len(detector.card_data) > 0, "Database is empty"
     return f"integrity OK — {len(detector.card_data)} entries"
 
+
 if detector:
-    check("Database integrity",  check_db_integrity)
+    check("Database integrity", check_db_integrity)
     check("card_list sample IDs", lambda: str(detector.card_list[:4]))
 
 
 # ─── TEST 3: DATA FILES ───────────────────────────────────────────────────────
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("  TEST 3: DATA FILES")
-print("="*60)
+print("=" * 60)
 
 from src.web.app_web import load_class, load_questions, get_student_name, invalidate_data_cache
 
 invalidate_data_cache()
 
+
 def test_class():
     cls = load_class()
-    assert 'class_name' in cls
-    assert 'students' in cls
-    assert len(cls['students']) == 34
+    assert "class_name" in cls
+    assert "students" in cls
+    assert len(cls["students"]) == 34
     return f"class='{cls['class_name']}', {len(cls['students'])} students"
+
 
 def test_questions():
     qs = load_questions()
     assert len(qs) > 0
     for q in qs:
-        assert 'id' in q and 'text' in q and 'options' in q and 'correct' in q
-        assert q['correct'] in ('A','B','C','D')
+        assert "id" in q and "text" in q and "options" in q and "correct" in q
+        assert q["correct"] in ("A", "B", "C", "D")
     return f"{len(qs)} questions, all valid"
+
 
 def test_student_lookup_hit():
     name = get_student_name(1)
     assert name != "HS #01", f"Expected real name, got: {name}"
     return f"card_no=1 → '{name}'"
 
+
 def test_student_lookup_miss():
     name = get_student_name(99)
     assert "99" in name or "#" in name
     return f"card_no=99 (miss) → '{name}'"
 
-check("class.json load",        test_class)
-check("questions.json load",    test_questions)
-check("Student lookup hit",     test_student_lookup_hit)
-check("Student lookup miss",    test_student_lookup_miss)
+
+check("class.json load", test_class)
+check("questions.json load", test_questions)
+check("Student lookup hit", test_student_lookup_hit)
+check("Student lookup miss", test_student_lookup_miss)
 
 
 # ─── TEST 4: STATE MANAGEMENT ─────────────────────────────────────────────────
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("  TEST 4: STATE MANAGEMENT (Thread-safe)")
-print("="*60)
+print("=" * 60)
 
 from src.web.app_web import state, state_lock
 
+
 def test_state_initial():
     with state_lock:
-        assert state['scanning'] == False
-        assert state['question'] is None
-        assert state['results']  == {}
-        assert state['revealed'] == False
+        assert state["scanning"] == False
+        assert state["question"] is None
+        assert state["results"] == {}
+        assert state["revealed"] == False
     return "initial state OK"
+
 
 def test_state_concurrent_write():
     errors = []
+
     def writer(i):
         try:
             with state_lock:
-                state['results'][str(i)] = 'A'
+                state["results"][str(i)] = "A"
         except Exception as e:
             errors.append(str(e))
+
     threads = [threading.Thread(target=writer, args=(i,)) for i in range(50)]
-    for t in threads: t.start()
-    for t in threads: t.join()
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
     with state_lock:
-        assert len(state['results']) == 50, f"Expected 50, got {len(state['results'])}"
-        state['results'] = {}  # reset
+        assert len(state["results"]) == 50, f"Expected 50, got {len(state['results'])}"
+        state["results"] = {}  # reset
     assert not errors, f"Thread errors: {errors}"
     return "50 concurrent writes, no race conditions"
 
-check("Initial state",           test_state_initial)
-check("Concurrent writes",       test_state_concurrent_write)
+
+check("Initial state", test_state_initial)
+check("Concurrent writes", test_state_concurrent_write)
 
 
 # ─── TEST 5: FLASK API ────────────────────────────────────────────────────────
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("  TEST 5: FLASK API ENDPOINTS")
-print("="*60)
+print("=" * 60)
 
 from src.web.app_web import app
 
 client = app.test_client()
 
+
 def test_api_class():
-    r = client.get('/api/class')
+    r = client.get("/api/class")
     assert r.status_code == 200
     d = json.loads(r.data)
-    assert 'students' in d
+    assert "students" in d
     return f"200 OK, {len(d['students'])} students"
 
+
 def test_api_questions():
-    r = client.get('/api/questions')
+    r = client.get("/api/questions")
     assert r.status_code == 200
     d = json.loads(r.data)
     assert isinstance(d, list) and len(d) > 0
     return f"200 OK, {len(d)} questions"
 
+
 def test_api_state():
-    r = client.get('/api/state')
+    r = client.get("/api/state")
     assert r.status_code == 200
     d = json.loads(r.data)
-    assert 'scanning' in d and 'results' in d
+    assert "scanning" in d and "results" in d
     return "200 OK, state fields present"
+
 
 def test_api_start():
     q = {"id": 1, "text": "Test?", "options": {"A": "o1", "B": "o2", "C": "o3", "D": "o4"}, "correct": "A"}
-    r = client.post('/api/start', json={"question": q})
+    r = client.post("/api/start", json={"question": q})
     assert r.status_code == 200
     d = json.loads(r.data)
-    assert d.get('ok') == True
+    assert d.get("ok") == True
     with state_lock:
-        assert state['scanning'] == True
-        assert state['question']['id'] == 1
+        assert state["scanning"] == True
+        assert state["question"]["id"] == 1
     return "scanning=True, question set"
 
+
 def test_api_stop():
-    r = client.post('/api/stop')
+    r = client.post("/api/stop")
     assert r.status_code == 200
     with state_lock:
-        assert state['scanning'] == False
+        assert state["scanning"] == False
     return "scanning=False"
+
 
 def test_api_reveal():
     # Set some results first
     with state_lock:
-        state['results'] = {'1': 'A', '2': 'B'}
-        state['question'] = {"id": 1, "text": "Test?", "options": {}, "correct": "A"}
-    r = client.post('/api/reveal')
+        state["results"] = {"1": "A", "2": "B"}
+        state["question"] = {"id": 1, "text": "Test?", "options": {}, "correct": "A"}
+    r = client.post("/api/reveal")
     assert r.status_code == 200
     with state_lock:
-        assert state['revealed'] == True
+        assert state["revealed"] == True
     return "revealed=True, CSV saved attempt"
 
+
 def test_api_reset():
-    r = client.post('/api/reset')
+    r = client.post("/api/reset")
     assert r.status_code == 200
     with state_lock:
-        assert state['scanning'] == False
-        assert state['results'] == {}
-        assert state['revealed'] == False
-        assert state['question'] is None
+        assert state["scanning"] == False
+        assert state["results"] == {}
+        assert state["revealed"] == False
+        assert state["question"] is None
     return "state fully reset"
 
+
 def test_api_reload_data():
-    r = client.post('/api/reload_data')
+    r = client.post("/api/reload_data")
     assert r.status_code == 200
     d = json.loads(r.data)
-    assert d.get('ok') == True
+    assert d.get("ok") == True
     return "cache invalidated + reloaded"
 
+
 def test_route_teacher():
-    r = client.get('/')
+    r = client.get("/")
     assert r.status_code == 200
-    assert b'Plickers' in r.data
+    assert b"Plickers" in r.data
     return "200 OK, teacher.html rendered"
 
+
 def test_route_display():
-    r = client.get('/display')
+    r = client.get("/display")
     assert r.status_code == 200
-    assert b'Plickers' in r.data
+    assert b"Plickers" in r.data
     return "200 OK, display.html rendered"
 
-check("GET /api/class",        test_api_class)
-check("GET /api/questions",    test_api_questions)
-check("GET /api/state",        test_api_state)
-check("POST /api/start",       test_api_start)
-check("POST /api/stop",        test_api_stop)
-check("POST /api/reveal",      test_api_reveal)
-check("POST /api/reset",       test_api_reset)
+
+check("GET /api/class", test_api_class)
+check("GET /api/questions", test_api_questions)
+check("GET /api/state", test_api_state)
+check("POST /api/start", test_api_start)
+check("POST /api/stop", test_api_stop)
+check("POST /api/reveal", test_api_reveal)
+check("POST /api/reset", test_api_reset)
 check("POST /api/reload_data", test_api_reload_data)
-check("GET / (teacher.html)",  test_route_teacher)
-check("GET /display",          test_route_display)
+check("GET / (teacher.html)", test_route_teacher)
+check("GET /display", test_route_display)
 
 
 # ─── TEST 6: DETECTOR ON SAMPLE IMAGES ────────────────────────────────────────
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("  TEST 6: CARD DETECTION ON SAMPLE IMAGES")
-print("="*60)
+print("=" * 60)
 
 import cv2
 
-SAMPLES_DIR = os.path.join(os.path.dirname(__file__), 'data', 'samples')
-sample_files = sorted([f for f in os.listdir(SAMPLES_DIR) if f.endswith('.jpg')])
+SAMPLES_DIR = os.path.join(os.path.dirname(__file__), "data", "samples")
+sample_files = sorted([f for f in os.listdir(SAMPLES_DIR) if f.endswith(".jpg")])
 print(f"  {INFO} Found {len(sample_files)} sample images")
 
 correct_count = 0
-wrong_count   = 0
-miss_count    = 0
+wrong_count = 0
+miss_count = 0
 
 for fname in sample_files:
     img = cv2.imread(os.path.join(SAMPLES_DIR, fname))
@@ -264,7 +293,7 @@ for fname in sample_files:
         print(f"  {FAIL} Cannot read: {fname}")
         miss_count += 1
         continue
-    expected = fname.split('.')[0]   # e.g. "003-A"
+    expected = fname.split(".")[0]  # e.g. "003-A"
     found = detector.process_image(img)
     found_ids = [str(c[0]) for c in found]
     if expected in found_ids:
@@ -285,9 +314,9 @@ results.append((accuracy >= 70, f"Card detection accuracy {accuracy:.1f}%"))
 
 
 # ─── TEST 7: FILE STRUCTURE ────────────────────────────────────────────────────
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("  TEST 7: FILE STRUCTURE")
-print("="*60)
+print("=" * 60)
 
 ROOT = os.path.dirname(__file__)
 EXPECTED_FILES = [
@@ -316,7 +345,7 @@ EXPECTED_FILES = [
 ]
 
 for fpath in EXPECTED_FILES:
-    full = os.path.join(ROOT, fpath.replace('/', os.sep))
+    full = os.path.join(ROOT, fpath.replace("/", os.sep))
     exists = os.path.isfile(full)
     status = PASS if exists else FAIL
     print(f"  {status} {fpath}")
@@ -324,9 +353,9 @@ for fpath in EXPECTED_FILES:
 
 
 # ─── SUMMARY ──────────────────────────────────────────────────────────────────
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("  TỔNG KẾT")
-print("="*60)
+print("=" * 60)
 passed = sum(1 for r in results if r[0])
 failed = len(results) - passed
 print(f"  PASSED : {passed}/{len(results)}")

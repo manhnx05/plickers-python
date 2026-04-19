@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Plickers — Teacher Dashboard</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -320,13 +321,19 @@ function updateStats(results) {
 }
 
 // ── SSE ─────────────────────────────────────────────────────────────────────
+let _sseSource = null;
 function subscribeSSE() {
-  const src = new EventSource('/api/events');
-  src.onmessage = e => {
+  if (_sseSource) { _sseSource.close(); _sseSource = null; }
+  _sseSource = new EventSource('/api/events');
+  _sseSource.onmessage = e => {
     const data = JSON.parse(e.data);
     applyState(data);
   };
-  src.onerror = () => setTimeout(subscribeSSE, 2000);
+  _sseSource.onerror = () => {
+    _sseSource.close();
+    _sseSource = null;
+    setTimeout(subscribeSSE, 2000);
+  };
 }
 
 function applyState(data) {

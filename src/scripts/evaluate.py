@@ -10,29 +10,30 @@ if project_root not in sys.path:
 from src.core.detector import PlickersDetector
 
 # Set proper utf-8 encoding for printing to Windows terminal
-sys.stdout.reconfigure(encoding='utf-8')
+sys.stdout.reconfigure(encoding="utf-8")
+
 
 def main():
     detector = PlickersDetector()
-    
-    img_dir = os.path.join(project_root, 'data', 'samples')
+
+    img_dir = os.path.join(project_root, "data", "samples")
     if not os.path.exists(img_dir):
         print(f"[CẢNH BÁO] Không tìm thấy thư mục: {img_dir}")
         return
 
-    test_files = [f for f in os.listdir(img_dir) if f.endswith('.jpg')]
+    test_files = [f for f in os.listdir(img_dir) if f.endswith(".jpg")]
     found_count = 0
 
-    print("BẮT ĐẦU CHẠY KIỂM THỬ TRÊN TÀN BỘ CÁC ẢNH:\n" + "-"*50)
+    print("BẮT ĐẦU CHẠY KIỂM THỬ TRÊN TÀN BỘ CÁC ẢNH:\n" + "-" * 50)
     for file in test_files:
         img_path = os.path.join(img_dir, file)
         img = cv2.imread(img_path)
         if img is None:
             continue
-            
+
         found_cards = detector.process_image(img)
-        expected_id = file.split('.')[0]
-        
+        expected_id = file.split(".")[0]
+
         # Check if the expected card is within the found_cards
         found_expected = False
         misclassified = []
@@ -41,17 +42,20 @@ def main():
                 found_expected = True
             else:
                 misclassified.append(str(card_id))
-                
+
         if found_expected:
             print(f"=> Ảnh test mẫu {file:12} | Kết quả phân tích: BINGO >>> {expected_id}")
             found_count += 1
         elif len(misclassified) > 0:
-            print(f"=> Ảnh test mẫu {file:12} | Kết quả phân tích: SO KHỚP SAI (Nhận nhầm thành {','.join(misclassified)})")
+            print(
+                f"=> Ảnh test mẫu {file:12} | Kết quả phân tích: SO KHỚP SAI (Nhận nhầm thành {','.join(misclassified)})"
+            )
         else:
             print(f"=> Ảnh test mẫu {file:12} | Kết quả phân tích: THẤT BẠI.")
 
     print("-" * 50)
     print(f"Tổng kết: Tự tin nhận diện chính xác {found_count}/{len(test_files)} ảnh.")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
