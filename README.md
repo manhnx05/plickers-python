@@ -111,24 +111,20 @@ Cần thiết khi thêm ảnh mẫu mới vào `data/samples/`.
 ### 5. In thẻ PDF
 
 ```bash
-# THẺ ĐƠN - 1 thẻ/trang, KHÔNG chồng chéo (KHUYẾN NGHỊ CAO NHẤT) ⭐⭐⭐⭐⭐
+# Tạo PDF thẻ Plickers (1 thẻ/trang, 120mm, không chồng chéo)
 python src/scripts/generate_single_card.py
-# hoặc: make generate-single
 
-# THẺ SẠCH - Chữ và số BÊN NGOÀI vùng quét, 6 thẻ/trang
-python src/scripts/generate_clean_plickers.py
-# hoặc: make generate-clean
-
-# PDF Premium với hướng dẫn chi tiết (2 thẻ/trang)
-python src/scripts/generate_premium_plickers.py
-# hoặc: make generate-premium
-
-# PDF chuẩn Plickers (6 thẻ/trang)
-python src/scripts/generate_plickers_cards.py
-# hoặc: make generate-cards
+# Hoặc dùng Makefile
+make generate-cards
 ```
 
-**⭐⭐⭐ Khuyến nghị cao nhất:** `generate_single_card.py` - 1 thẻ/trang, thẻ lớn 120mm, chữ số cách xa, KHÔNG bị chồng chéo!
+**File PDF:** `data/output/plickers_single_card.pdf`
+
+**Đặc điểm:**
+- ✅ 1 thẻ/trang - Không bị chồng chéo
+- ✅ Kích thước lớn: 120mm × 120mm
+- ✅ Chữ cái cách xa thẻ 25mm
+- ✅ Dễ in, dễ cắt, dễ phát cho học sinh
 
 ---
 
