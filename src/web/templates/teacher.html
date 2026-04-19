@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plickers — Teacher Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root {
+  --bg:      #0d1117;
+  --panel:   #161b22;
+  --border:  #21262d;
+  --accent:  #58a6ff;
+  --green:   #3fb950;
+  --yellow:  #d29922;
+  --red:     #f85149;
+  --purple:  #bc8cff;
+  --text:    #e6edf3;
+  --muted:   #7d8590;
+  --A: #ef4444; --B: #3b82f6; --C: #22c55e; --D: #f59e0b;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background:var(--bg); color:var(--text);
+  font-family:'Inter',sans-serif; height:100vh;
+  display:grid; grid-template-rows:58px 1fr 64px; overflow:hidden;
+}
+
+/* HEADER */
+header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 24px; background:var(--panel);
+  border-bottom:1px solid var(--border);
+}
+.logo { display:flex; align-items:center; gap:10px; font-weight:800; font-size:18px; }
+.logo-icon { font-size:24px; }
+.class-badge {
+  background:#1f2937; border:1px solid var(--border);
+  padding:4px 14px; border-radius:20px; font-size:13px; color:var(--muted);
+}
+#scan-status {
+  display:flex; align-items:center; gap:8px;
+  font-size:13px; font-weight:600;
+}
+.dot { width:10px; height:10px; border-radius:50%; background:var(--muted); }
+.dot.active { background:var(--green); box-shadow:0 0 8px var(--green); animation:pulse 1.2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+/* MAIN GRID */
+main {
+  display:grid; grid-template-columns:1fr 380px;
+  gap:0; overflow:hidden;
+}
+
+/* LEFT: Camera + controls */
+.camera-panel {
+  display:flex; flex-direction:column;
+  padding:16px; gap:12px; overflow:hidden;
+}
+.camera-wrap {
+  flex:1; background:#000; border-radius:12px;
+  overflow:hidden; display:flex; align-items:center; justify-content:center;
+  border:1px solid var(--border); position:relative;
+}
+.camera-wrap img { width:100%; height:100%; object-fit:contain; display:block; }
+.cam-overlay {
+  position:absolute; top:10px; right:10px;
+  background:rgba(0,0,0,.65); border-radius:8px; padding:6px 12px;
+  font-size:12px; color:var(--muted);
+}
+
+.controls {
+  display:flex; gap:10px;
+}
+.btn {
+  flex:1; padding:12px; border-radius:10px; border:none; cursor:pointer;
+  font-family:inherit; font-size:14px; font-weight:700;
+  transition:.15s; letter-spacing:.5px;
+}
+.btn-start  { background:var(--green); color:#000; }
+.btn-stop   { background:#374151; color:var(--text); }
+.btn-reveal { background:var(--yellow); color:#000; }
+.btn-reset  { background:#1f2937; color:var(--muted); border:1px solid var(--border); }
+.btn:hover  { opacity:.85; transform:translateY(-1px); }
+.btn:disabled { opacity:.35; cursor:not-allowed; transform:none; }
+
+/* QUESTION PICKER */
+.q-panel {
+  padding:14px 16px 0; border-bottom:1px solid var(--border);
+}
+.q-panel label { font-size:11px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:1px; }
+.q-select {
+  width:100%; margin-top:6px; padding:10px 12px;
+  background:#1f2937; border:1px solid var(--border); border-radius:8px;
+  color:var(--text); font-family:inherit; font-size:13px; cursor:pointer;
+}
+.q-preview {
+  margin-top:8px; padding:10px 12px;
+  background:#1c2128; border-radius:8px; font-size:13px;
+  color:var(--text); min-height:44px;
+  border-left:3px solid var(--accent); line-height:1.5;
+}
+
+/* RIGHT SIDE */
+.right-panel {
+  display:flex; flex-direction:column;
+  border-left:1px solid var(--border); overflow:hidden;
+}
+
+.students-wrap { flex:1; overflow-y:auto; padding:12px 16px; }
+.students-wrap h3 {
+  font-size:12px; color:var(--muted); font-weight:600;
+  text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;
+}
+#student-count { font-weight:700; color:var(--green); }
+
+.student-grid {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:6px;
+}
+.stu-card {
+  background:#1c2128; border:1px solid var(--border);
+  border-radius:8px; padding:6px 4px; text-align:center;
+  transition:.2s; cursor:default;
+}
+.stu-card.answered {
+  background:#0d2818; border-color:var(--green);
+}
+.stu-card.answered-A { background:#2d1515; border-color:var(--A); }
+.stu-card.answered-B { background:#131d35; border-color:var(--B); }
+.stu-card.answered-C { background:#0d2818; border-color:var(--C); }
+.stu-card.answered-D { background:#2d2210; border-color:var(--D); }
+.stu-no   { font-size:10px; color:var(--muted); }
+.stu-name { font-size:10px; font-weight:600; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.stu-ans  { font-size:16px; font-weight:800; margin-top:3px; }
+.ans-A { color:var(--A); }
+.ans-B { color:var(--B); }
+.ans-C { color:var(--C); }
+.ans-D { color:var(--D); }
+
+/* FOOTER STATS */
+footer {
+  background:var(--panel); border-top:1px solid var(--border);
+  display:grid; grid-template-columns:repeat(4,1fr); gap:0;
+}
+.stat-block {
+  display:flex; align-items:center; justify-content:center; gap:12px;
+  padding:12px 16px; border-right:1px solid var(--border);
+  transition:.2s;
+}
+.stat-block:last-child { border-right:none; }
+.stat-letter {
+  width:36px; height:36px; border-radius:9px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px; font-weight:800;
+}
+.sl-A { background:rgba(239,68,68,.2); color:var(--A); }
+.sl-B { background:rgba(59,130,246,.2); color:var(--B); }
+.sl-C { background:rgba(34,197,94,.2); color:var(--C); }
+.sl-D { background:rgba(245,158,11,.2); color:var(--D); }
+.stat-info { display:flex; flex-direction:column; }
+.stat-count { font-size:20px; font-weight:800; }
+.stat-pct   { font-size:11px; color:var(--muted); }
+
+/* Bar chart inline */
+.chart-wrap { padding:10px 16px 0; }
+#resultChart { max-height:100px; }
+
+/* Scroll fix */
+.students-wrap::-webkit-scrollbar { width:4px; }
+.students-wrap::-webkit-scrollbar-track { background:transparent; }
+.students-wrap::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <span class="logo-icon">🎯</span>
+    <span>Plickers Classroom</span>
+  </div>
+  <span class="class-badge" id="class-name">Dang tai...</span>
+  <div id="scan-status">
+    <div class="dot" id="scan-dot"></div>
+    <span id="scan-label">Chua bat dau</span>
+  </div>
+</header>
+
+<!-- MAIN -->
+<main>
+  <!-- LEFT: Camera -->
+  <div class="camera-panel">
+    <div class="camera-wrap">
+      <img src="/video_feed" alt="Camera Feed">
+      <div class="cam-overlay" id="cam-info">Camera active</div>
+    </div>
+    <div class="controls">
+      <button class="btn btn-start"  id="btnStart"  onclick="startSession()">▶ BAT DAU QUET</button>
+      <button class="btn btn-stop"   id="btnStop"   onclick="stopScan()" disabled>⏸ TẠM DỪNG</button>
+      <button class="btn btn-reveal" id="btnReveal" onclick="revealAnswer()" disabled>👁 HIEN DAP AN</button>
+      <button class="btn btn-reset"  id="btnReset"  onclick="resetSession()">↺</button>
+    </div>
+  </div>
+
+  <!-- RIGHT: Students + question -->
+  <div class="right-panel">
+    <div class="q-panel">
+      <label>Cau hoi hien tai</label>
+      <select class="q-select" id="q-select" onchange="onQuestionChange()">
+        <option value="">-- Chon cau hoi --</option>
+      </select>
+      <div class="q-preview" id="q-preview">Chua chon cau hoi nao.</div>
+    </div>
+
+    <div class="students-wrap">
+      <h3>Hoc sinh — <span id="student-count">0/0</span> da tra loi</h3>
+      <div class="student-grid" id="student-grid"></div>
+    </div>
+  </div>
+</main>
+
+<!-- FOOTER: ABCD Stats -->
+<footer>
+  <div class="stat-block" id="block-A">
+    <div class="stat-letter sl-A">A</div>
+    <div class="stat-info">
+      <span class="stat-count" id="cnt-A">0</span>
+      <span class="stat-pct"  id="pct-A">0%</span>
+    </div>
+  </div>
+  <div class="stat-block" id="block-B">
+    <div class="stat-letter sl-B">B</div>
+    <div class="stat-info">
+      <span class="stat-count" id="cnt-B">0</span>
+      <span class="stat-pct"  id="pct-B">0%</span>
+    </div>
+  </div>
+  <div class="stat-block" id="block-C">
+    <div class="stat-letter sl-C">C</div>
+    <div class="stat-info">
+      <span class="stat-count" id="cnt-C">0</span>
+      <span class="stat-pct"  id="pct-C">0%</span>
+    </div>
+  </div>
+  <div class="stat-block" id="block-D">
+    <div class="stat-letter sl-D">D</div>
+    <div class="stat-info">
+      <span class="stat-count" id="cnt-D">0</span>
+      <span class="stat-pct"  id="pct-D">0%</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+let students = [];
+let questions = [];
+let selectedQuestion = null;
+
+// ── Boot ────────────────────────────────────────────────────────────────────
+async function boot() {
+  const [cls, qs] = await Promise.all([
+    fetch('/api/class').then(r => r.json()),
+    fetch('/api/questions').then(r => r.json())
+  ]);
+
+  document.getElementById('class-name').textContent = cls.class_name || 'Lop hoc';
+  students = cls.students || [];
+  questions = qs || [];
+
+  // Populate question selector
+  const sel = document.getElementById('q-select');
+  questions.forEach((q, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = `#${q.id} — ${q.text}`;
+    sel.appendChild(opt);
+  });
+
+  renderStudentGrid({});
+  subscribeSSE();
+}
+
+// ── Render student grid ──────────────────────────────────────────────────────
+function renderStudentGrid(results) {
+  const grid = document.getElementById('student-grid');
+  grid.innerHTML = '';
+  let answered = 0;
+
+  students.forEach(s => {
+    const ans = results[String(s.card_no)] || results[s.card_no] || null;
+    if (ans) answered++;
+
+    const card = document.createElement('div');
+    card.className = 'stu-card' + (ans ? ` answered answered-${ans}` : '');
+    card.title = s.name;
+    card.innerHTML = `
+      <div class="stu-no">#${String(s.card_no).padStart(2,'0')}</div>
+      <div class="stu-name">${s.name.split(' ').pop()}</div>
+      <div class="stu-ans ${ans ? 'ans-'+ans : ''}">${ans || '·'}</div>
+    `;
+    grid.appendChild(card);
+  });
+
+  document.getElementById('student-count').textContent = `${answered}/${students.length}`;
+}
+
+// ── ABCD stats ───────────────────────────────────────────────────────────────
+function updateStats(results) {
+  const counts = { A:0, B:0, C:0, D:0 };
+  const vals = Object.values(results);
+  vals.forEach(v => { if (counts[v] !== undefined) counts[v]++; });
+  const total = vals.length || 1;
+
+  ['A','B','C','D'].forEach(l => {
+    document.getElementById('cnt-'+l).textContent = counts[l];
+    document.getElementById('pct-'+l).textContent = Math.round(counts[l]/total*100) + '%';
+  });
+}
+
+// ── SSE ─────────────────────────────────────────────────────────────────────
+function subscribeSSE() {
+  const src = new EventSource('/api/events');
+  src.onmessage = e => {
+    const data = JSON.parse(e.data);
+    applyState(data);
+  };
+  src.onerror = () => setTimeout(subscribeSSE, 2000);
+}
+
+function applyState(data) {
+  const { scanning, results, revealed, question } = data;
+
+  // Dot indicator
+  const dot   = document.getElementById('scan-dot');
+  const label = document.getElementById('scan-label');
+  dot.className   = 'dot' + (scanning ? ' active' : '');
+  label.textContent = scanning ? 'Dang quet...' : (revealed ? 'Da hien dap an' : 'Tam dung');
+
+  // Buttons
+  document.getElementById('btnStart').disabled  = scanning;
+  document.getElementById('btnStop').disabled   = !scanning;
+  document.getElementById('btnReveal').disabled = revealed || !question;
+
+  // Cam overlay
+  document.getElementById('cam-info').textContent =
+    scanning ? `Nhan dien: ${Object.keys(results).length} the` : 'Camera active';
+
+  renderStudentGrid(results);
+  updateStats(results);
+
+  // Highlight correct answer when revealed
+  if (revealed && question) {
+    ['A','B','C','D'].forEach(l => {
+      const block = document.getElementById('block-'+l);
+      if (l === question.correct) {
+        block.style.background = l === 'A' ? 'rgba(239,68,68,.15)' :
+                                  l === 'B' ? 'rgba(59,130,246,.15)' :
+                                  l === 'C' ? 'rgba(34,197,94,.15)' :
+                                              'rgba(245,158,11,.15)';
+        block.style.boxShadow = '0 0 0 2px currentColor inset';
+      }
+    });
+  }
+}
+
+// ── UI actions ───────────────────────────────────────────────────────────────
+function onQuestionChange() {
+  const idx = document.getElementById('q-select').value;
+  if (idx === '') {
+    selectedQuestion = null;
+    document.getElementById('q-preview').textContent = 'Chua chon cau hoi nao.';
+    return;
+  }
+  selectedQuestion = questions[parseInt(idx)];
+  const opts = selectedQuestion.options;
+  document.getElementById('q-preview').innerHTML =
+    `<strong>${selectedQuestion.text}</strong><br>
+     <span style="color:var(--A)">A: ${opts.A}</span> &nbsp;
+     <span style="color:var(--B)">B: ${opts.B}</span> &nbsp;
+     <span style="color:var(--C)">C: ${opts.C}</span> &nbsp;
+     <span style="color:var(--D)">D: ${opts.D}</span>`;
+}
+
+async function startSession() {
+  if (!selectedQuestion) { alert('Vui long chon cau hoi truoc!'); return; }
+  await fetch('/api/start', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ question: selectedQuestion })
+  });
+}
+
+async function stopScan() {
+  await fetch('/api/stop', { method:'POST' });
+}
+
+async function revealAnswer() {
+  await fetch('/api/reveal', { method:'POST' });
+}
+
+async function resetSession() {
+  if (!confirm('Dat lai phien hoc? Tat ca ket qua se bi xoa.')) return;
+  await fetch('/api/reset', { method:'POST' });
+  // Reset stat highlights
+  ['A','B','C','D'].forEach(l => {
+    const block = document.getElementById('block-'+l);
+    block.style.background = '';
+    block.style.boxShadow  = '';
+  });
+  document.getElementById('q-select').value = '';
+  onQuestionChange();
+}
+
+boot();
+</script>
+</body>
+</html>

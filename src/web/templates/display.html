@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plickers — Student Display</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root {
+  --bg:    #030712;
+  --panel: #111827;
+  --A: #ef4444; --B: #3b82f6; --C: #22c55e; --D: #f59e0b;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background:var(--bg);
+  color:#f9fafb;
+  font-family:'Inter',sans-serif;
+  height:100vh;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+
+/* HEADER BAR */
+.top-bar {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 36px;
+  background:rgba(255,255,255,.04);
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.brand { font-size:20px; font-weight:800; letter-spacing:-0.5px; }
+.brand span { color:#60a5fa; }
+.answered-pill {
+  background:rgba(34,197,94,.15); border:1px solid rgba(34,197,94,.4);
+  color:#4ade80; padding:6px 20px; border-radius:24px;
+  font-size:15px; font-weight:700;
+}
+
+/* WAITING SCREEN */
+#screen-wait {
+  flex:1; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:20px;
+}
+.wait-icon { font-size:72px; animation:float 3s ease-in-out infinite; }
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-14px)} }
+.wait-title { font-size:32px; font-weight:800; color:rgba(255,255,255,.8); }
+.wait-sub   { font-size:16px; color:rgba(255,255,255,.35); }
+
+/* QUESTION SCREEN */
+#screen-question {
+  flex:1; display:none; flex-direction:column;
+  padding:28px 60px 20px;
+}
+
+.q-number { font-size:13px; color:rgba(255,255,255,.4); font-weight:600; letter-spacing:2px; text-transform:uppercase; margin-bottom:10px; }
+.q-text {
+  font-size:clamp(24px, 3.5vw, 42px); font-weight:800; line-height:1.3;
+  color:#f1f5f9; margin-bottom:28px;
+  text-shadow:0 2px 20px rgba(0,0,0,.5);
+}
+
+.options-grid {
+  display:grid; grid-template-columns:1fr 1fr;
+  gap:14px; flex:1;
+}
+.opt-card {
+  display:flex; align-items:center; gap:20px;
+  border-radius:16px; padding:20px 28px;
+  border:2px solid transparent;
+  transition:.25s; position:relative; overflow:hidden;
+}
+.opt-card::before {
+  content:''; position:absolute; inset:0; opacity:.12; border-radius:14px;
+}
+.opt-A { border-color:var(--A); }  .opt-A::before { background:var(--A); }
+.opt-B { border-color:var(--B); }  .opt-B::before { background:var(--B); }
+.opt-C { border-color:var(--C); }  .opt-C::before { background:var(--C); }
+.opt-D { border-color:var(--D); }  .opt-D::before { background:var(--D); }
+.opt-correct { transform:scale(1.02); box-shadow:0 0 32px currentColor; }
+
+.opt-badge {
+  min-width:54px; height:54px; border-radius:12px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:28px; font-weight:900; z-index:1;
+}
+.bg-A { background:rgba(239,68,68,.25); color:var(--A); }
+.bg-B { background:rgba(59,130,246,.25); color:var(--B); }
+.bg-C { background:rgba(34,197,94,.25); color:var(--C); }
+.bg-D { background:rgba(245,158,11,.25); color:var(--D); }
+
+.opt-label {
+  font-size:clamp(16px, 2vw, 24px); font-weight:700;
+  color:#f1f5f9; z-index:1; flex:1;
+}
+
+/* RESULT overlay */
+#screen-results {
+  flex:1; display:none; flex-direction:column;
+  padding:20px 60px 16px;
+}
+.res-q-text { font-size:22px; font-weight:700; color:rgba(255,255,255,.7); margin-bottom:16px; }
+.chart-area { flex:1; display:flex; align-items:center; }
+#barChart { max-height:300px; }
+
+/* PROGRESS BAR */
+.progress-wrap {
+  padding:10px 60px 14px;
+}
+.progress-label {
+  font-size:13px; color:rgba(255,255,255,.4); margin-bottom:6px; font-weight:600;
+}
+.progress-bar {
+  height:8px; background:rgba(255,255,255,.08); border-radius:8px; overflow:hidden;
+}
+.progress-fill {
+  height:100%; background:linear-gradient(90deg, #3b82f6, #22c55e);
+  border-radius:8px; transition:width .5s ease;
+  width:0%;
+}
+
+/* DIRECTION HINT */
+.direction-hint {
+  display:grid; grid-template-columns:repeat(4,auto);
+  justify-content:center; gap:16px;
+  padding:8px 0 12px;
+}
+.dir-item {
+  display:flex; align-items:center; gap:8px;
+  font-size:14px; font-weight:700;
+}
+.dir-badge {
+  width:32px; height:32px; border-radius:8px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:15px; font-weight:900;
+}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="top-bar">
+  <div class="brand">🎯 <span>Plickers</span> Classroom</div>
+  <div class="answered-pill" id="answered-pill">0 / 0 da tra loi</div>
+</div>
+
+<!-- WAITING SCREEN -->
+<div id="screen-wait">
+  <div class="wait-icon">📋</div>
+  <div class="wait-title">San sang cho cau hoi!</div>
+  <div class="wait-sub">Giao vien se bat dau trong giay lat...</div>
+</div>
+
+<!-- QUESTION SCREEN -->
+<div id="screen-question">
+  <div class="q-number" id="q-number">CAU HOI #1</div>
+  <div class="q-text"   id="q-text">...</div>
+  <div class="options-grid" id="options-grid">
+    <div class="opt-card opt-A" id="opt-A">
+      <div class="opt-badge bg-A">A</div>
+      <div class="opt-label" id="lbl-A">...</div>
+    </div>
+    <div class="opt-card opt-B" id="opt-B">
+      <div class="opt-badge bg-B">B</div>
+      <div class="opt-label" id="lbl-B">...</div>
+    </div>
+    <div class="opt-card opt-C" id="opt-C">
+      <div class="opt-badge bg-C">C</div>
+      <div class="opt-label" id="lbl-C">...</div>
+    </div>
+    <div class="opt-card opt-D" id="opt-D">
+      <div class="opt-badge bg-D">D</div>
+      <div class="opt-label" id="lbl-D">...</div>
+    </div>
+  </div>
+</div>
+
+<!-- RESULTS SCREEN -->
+<div id="screen-results">
+  <div class="res-q-text" id="res-q-text">...</div>
+  <div class="chart-area">
+    <canvas id="barChart"></canvas>
+  </div>
+</div>
+
+<!-- PROGRESS BAR -->
+<div class="progress-wrap">
+  <div class="progress-label" id="progress-label">Cho giao vien bat dau...</div>
+  <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+</div>
+
+<!-- ABCD DIRECTION HINT -->
+<div class="direction-hint">
+  <div class="dir-item"><div class="dir-badge bg-A">↑</div><span style="color:var(--A)">A — Len</span></div>
+  <div class="dir-item"><div class="dir-badge bg-B" style="background:rgba(59,130,246,.25);color:var(--B)">→</div><span style="color:var(--B)">B — Phai</span></div>
+  <div class="dir-item"><div class="dir-badge bg-C" style="background:rgba(34,197,94,.25);color:var(--C)">↓</div><span style="color:var(--C)">C — Xuong</span></div>
+  <div class="dir-item"><div class="dir-badge bg-D" style="background:rgba(245,158,11,.25);color:var(--D)">←</div><span style="color:var(--D)">D — Trai</span></div>
+</div>
+
+<script>
+let totalStudents = 34;
+let barChart = null;
+
+// Fetch total students on load
+fetch('/api/class').then(r=>r.json()).then(cls => {
+  totalStudents = (cls.students || []).length;
+});
+
+// SSE subscription
+const sse = new EventSource('/api/events');
+sse.onmessage = e => {
+  const data = JSON.parse(e.data);
+  applyState(data);
+};
+
+function applyState({ scanning, question, results, revealed }) {
+  const resultsArr  = Object.values(results || {});
+  const answered    = resultsArr.length;
+  const pct         = totalStudents > 0 ? Math.round(answered / totalStudents * 100) : 0;
+
+  // Answered pill + progress
+  document.getElementById('answered-pill').textContent = `${answered} / ${totalStudents} da tra loi`;
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-label').textContent =
+    scanning ? `Dang quet... ${pct}% hoc sinh da tra loi` :
+    revealed ? 'Da hien dap an!' :
+    question  ? 'Tam dung — Giao vien xem ket qua' : 'Cho giao vien bat dau...';
+
+  if (!question) {
+    show('screen-wait');
+    return;
+  }
+
+  if (revealed) {
+    show('screen-results');
+    renderResults(question, results);
+  } else {
+    show('screen-question');
+    renderQuestion(question);
+  }
+}
+
+function show(id) {
+  ['screen-wait','screen-question','screen-results'].forEach(s => {
+    document.getElementById(s).style.display = (s === id) ? 'flex' : 'none';
+  });
+}
+
+function renderQuestion(q) {
+  document.getElementById('q-number').textContent = `CAU HOI #${q.id}`;
+  document.getElementById('q-text').textContent   = q.text;
+  ['A','B','C','D'].forEach(l => {
+    document.getElementById('lbl-'+l).textContent = q.options[l] || '';
+    document.getElementById('opt-'+l).classList.remove('opt-correct');
+  });
+}
+
+function renderResults(q, results) {
+  document.getElementById('res-q-text').textContent = q.text;
+
+  // Highlight correct option
+  ['A','B','C','D'].forEach(l => {
+    const el = document.getElementById('opt-'+l);
+    if (el) el.classList.toggle('opt-correct', l === q.correct);
+  });
+
+  const counts = { A:0, B:0, C:0, D:0 };
+  Object.values(results).forEach(v => { if (counts[v]!==undefined) counts[v]++; });
+
+  const COLORS = {
+    A: 'rgba(239,68,68,.85)',
+    B: 'rgba(59,130,246,.85)',
+    C: 'rgba(34,197,94,.85)',
+    D: 'rgba(245,158,11,.85)',
+  };
+
+  if (barChart) barChart.destroy();
+  barChart = new Chart(document.getElementById('barChart'), {
+    type:'bar',
+    data:{
+      labels:['A','B','C','D'],
+      datasets:[{
+        data: ['A','B','C','D'].map(l => counts[l]),
+        backgroundColor: ['A','B','C','D'].map(l =>
+          l === q.correct ? COLORS[l] : COLORS[l].replace('.85', '.35')),
+        borderColor: ['A','B','C','D'].map(l => COLORS[l]),
+        borderWidth:2, borderRadius:10,
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          callbacks:{ label: ctx => ` ${ctx.raw} hoc sinh` }
+        }
+      },
+      scales:{
+        y:{ beginAtZero:true, ticks:{color:'rgba(255,255,255,.5)', stepSize:1}, grid:{color:'rgba(255,255,255,.06)'} },
+        x:{ ticks:{color:'rgba(255,255,255,.7)', font:{size:18, weight:'bold'}}, grid:{display:false} }
+      }
+    }
+  });
+}
+</script>
+</body>
+</html>

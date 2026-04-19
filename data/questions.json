@@ -1,0 +1,32 @@
+[
+  {
+    "id": 1,
+    "text": "Thu do cua Viet Nam la thanh pho nao?",
+    "options": { "A": "Ha Noi", "B": "Ho Chi Minh", "C": "Da Nang", "D": "Hue" },
+    "correct": "A"
+  },
+  {
+    "id": 2,
+    "text": "2 + 2 x 3 = ?",
+    "options": { "A": "12", "B": "10", "C": "8", "D": "6" },
+    "correct": "C"
+  },
+  {
+    "id": 3,
+    "text": "Nguyen lieu chinh de san xuat giay la gi?",
+    "options": { "A": "Nhua", "B": "Kim loai", "C": "Go / Go goc", "D": "Da" },
+    "correct": "C"
+  },
+  {
+    "id": 4,
+    "text": "Dat nuoc nao co dan so dong nhat the gioi?",
+    "options": { "A": "An Do", "B": "Trung Quoc", "C": "My", "D": "Indonesia" },
+    "correct": "A"
+  },
+  {
+    "id": 5,
+    "text": "Mau ket hop giua Do va Xanh la mau gi?",
+    "options": { "A": "Tim", "B": "Cam", "C": "Vang", "D": "Nau" },
+    "correct": "B"
+  }
+]
