@@ -31,15 +31,18 @@ def main():
             continue
             
         card_id, cnt = detector.process_image(img)
+        expected_id = file.split('.')[0]
         
-        if card_id:
+        if card_id == expected_id:
             print(f"=> Ảnh test mẫu {file:12} | Kết quả phân tích: BINGO >>> {str(card_id)}")
             found_count += 1
+        elif card_id:
+            print(f"=> Ảnh test mẫu {file:12} | Kết quả phân tích: SO KHỚP SAI (Nhận nhầm thành {str(card_id)})")
         else:
             print(f"=> Ảnh test mẫu {file:12} | Kết quả phân tích: THẤT BẠI.")
 
     print("-" * 50)
-    print(f"Tổng kết: Tự tin nhận diện thành công {found_count}/{len(test_files)} ảnh.")
+    print(f"Tổng kết: Tự tin nhận diện chính xác {found_count}/{len(test_files)} ảnh.")
 
 if __name__ == '__main__':
     main()

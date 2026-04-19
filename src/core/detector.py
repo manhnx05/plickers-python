@@ -63,41 +63,53 @@ class PlickersDetector:
     def process_image(self, img):
         """
         Processes an entire BGR image, extracts contours, and attempts to find a valid card.
+        Uses an adaptive search over Blur and Canny thresholds to handle extreme lighting conditions.
         Returns card_id if found, else None.
         """
-        blur_img = cv2.GaussianBlur(img, (5, 5), 0)
-        canny = cv2.Canny(blur_img, 30, 150)
-        gray = cv2.cvtColor(blur_img, cv2.COLOR_BGR2GRAY)
-        ret_thresh, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        
+        # Adaptive Multi-Pass to maximize recognition under varying lighting
+        blur_settings = [3, 5, 7]
+        canny_settings = [(30, 150), (10, 100), (50, 200)]
+        
+        for b_val in blur_settings:
+            blur_img = cv2.GaussianBlur(img, (b_val, b_val), 0)
+            
+            for c_thresh in canny_settings:
+                canny = cv2.Canny(blur_img, c_thresh[0], c_thresh[1])
+                ret_thresh, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
-        contours, hierarchy = cv2.findContours(canny, 2, 1)
+                contours, hierarchy = cv2.findContours(canny, 2, 1)
 
-        for cnt in contours:
-            if len(cnt) > 50:
-                approx = cv2.approxPolyDP(cnt, 0.01 * cv2.arcLength(cnt, True), True)
-                if len(approx) > 4:
-                    card_id = None
-                    if cnt[:,0,:].max() - cnt[:,0,:].min() > cnt[:,:,0].max() - cnt[:,:,0].min():
-                        diff = cnt[:,:,0].max() - cnt[:,:,0].min()
-                        card = thresh[cnt[:,0,:].min():cnt[:,0,:].min()+diff, cnt[:,:,0].min():cnt[:,:,0].max()]
-                        if len(card) > 10 and 100 < np.average(card) < 230:
-                            card_id = self.check_card_matrix(card)
-                        
-                        if not card_id:
-                            card = thresh[abs(cnt[:,0,:].max()-diff):cnt[:,0,:].max(), cnt[:,:,0].min():cnt[:,:,0].max()]
-                            if len(card) > 10 and 100 < np.average(card) < 230:
-                                card_id = self.check_card_matrix(card)
-                    else:
-                        diff = cnt[:,0,:].max() - cnt[:,0,:].min()
-                        card = thresh[cnt[:,0,:].min():cnt[:,0,:].max(), cnt[:,:,0].min():cnt[:,:,0].min()+diff]
-                        if len(card) > 10 and 100 < np.average(card) < 230:
-                            card_id = self.check_card_matrix(card)
+                for cnt in contours:
+                    if len(cnt) > 50:
+                        approx = cv2.approxPolyDP(cnt, 0.01 * cv2.arcLength(cnt, True), True)
+                        if len(approx) > 4:
+                            card_id = None
                             
-                        if not card_id:
-                            card = thresh[cnt[:,0,:].min():cnt[:,0,:].max(), cnt[:,:,0].max()-diff:cnt[:,:,0].max()]
-                            if len(card) > 10 and 100 < np.average(card) < 230:
-                                card_id = self.check_card_matrix(card)
+                            # Original boundary extraction logic matched against DB generator
+                            if cnt[:,0,:].max() - cnt[:,0,:].min() > cnt[:,:,0].max() - cnt[:,:,0].min():
+                                diff = cnt[:,:,0].max() - cnt[:,:,0].min()
+                                card = thresh[cnt[:,0,:].min():cnt[:,0,:].min()+diff, cnt[:,:,0].min():cnt[:,:,0].max()]
+                                if len(card) > 10 and 100 < np.average(card) < 230:
+                                    card_id = self.check_card_matrix(card)
                                 
-                    if card_id:
-                        return card_id, cnt
+                                if not card_id:
+                                    card = thresh[abs(cnt[:,0,:].max()-diff):cnt[:,0,:].max(), cnt[:,:,0].min():cnt[:,:,0].max()]
+                                    if len(card) > 10 and 100 < np.average(card) < 230:
+                                        card_id = self.check_card_matrix(card)
+                            else:
+                                diff = cnt[:,0,:].max() - cnt[:,0,:].min()
+                                card = thresh[cnt[:,0,:].min():cnt[:,0,:].max(), cnt[:,:,0].min():cnt[:,:,0].min()+diff]
+                                if len(card) > 10 and 100 < np.average(card) < 230:
+                                    card_id = self.check_card_matrix(card)
+                                    
+                                if not card_id:
+                                    card = thresh[cnt[:,0,:].min():cnt[:,0,:].max(), cnt[:,:,0].max()-diff:cnt[:,:,0].max()]
+                                    if len(card) > 10 and 100 < np.average(card) < 230:
+                                        card_id = self.check_card_matrix(card)
+                                        
+                            if card_id:
+                                return card_id, cnt
+        
         return None, None
