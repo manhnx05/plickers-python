@@ -26,15 +26,16 @@ class PlickersDetector:
         card_array = np.zeros([5, 5])
         for y in range(1, 6):
             for x in range(1, 6):
-                if y == 1 and x == 1:
-                    crop = result_img[0:int(height * (y / 5.0)), 0:int(width * (x / 5.0))]
-                elif y == 1:
-                    crop = result_img[0:int(height * (y / 5.0)), int(width * ((x - 1) / 5.0)):int(width * (x / 5.0))]
-                elif x == 1:
-                    crop = result_img[int(height * ((y - 1) / 5.0)):int(height * (y / 5.0)), 0:int(width * (x / 5.0))]
-                else:
-                    crop = result_img[int(height * ((y - 1) / 5.0)):int(height * (y / 5.0)),
-                           int(width * ((x - 1) / 5.0)):int(width * (x / 5.0))]
+                y_start = int(height * ((y - 1) / 5.0))
+                y_end = int(height * (y / 5.0))
+                x_start = int(width * ((x - 1) / 5.0))
+                x_end = int(width * (x / 5.0))
+                
+                # Inset by 10% on each side to avoid border noise
+                inset_y = int((y_end - y_start) * 0.15)
+                inset_x = int((x_end - x_start) * 0.15)
+                
+                crop = result_img[y_start + inset_y : y_end - inset_y, x_start + inset_x : x_end - inset_x]
 
                 if np.average(crop) > 120:     
                     card_array[y - 1, x - 1] = 0
@@ -58,10 +59,10 @@ class PlickersDetector:
         Processes an entire BGR image, extracts contours, and attempts to find a valid card.
         Returns card_id if found, else None.
         """
-        blur_img = cv2.GaussianBlur(img, (3, 3), 0)
-        canny = cv2.Canny(blur_img, 40, 170)
+        blur_img = cv2.GaussianBlur(img, (5, 5), 0)
+        canny = cv2.Canny(blur_img, 30, 150)
         gray = cv2.cvtColor(blur_img, cv2.COLOR_BGR2GRAY)
-        ret_thresh, thresh = cv2.threshold(gray, 99, 255, 1) # static thresh from old code
+        ret_thresh, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
         contours, hierarchy = cv2.findContours(canny, 2, 1)
 
