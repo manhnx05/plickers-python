@@ -1,76 +1,147 @@
 # Plickers Python 📸
 
-Hệ thống nhận diện ứng dụng ảnh thẻ Plickers nguồn mở ứng với OpenCV dành cho Python.
-Dự án được kết cấu lại theo kiến trúc module chuyên nghiệp để dễ dàng bảo trì và bổ sung tính năng.
+Hệ thống nhận diện thẻ Plickers nguồn mở sử dụng OpenCV cho Python.  
+Hỗ trợ hai chế độ: **Web App** (teacher dashboard + student display) và **Standalone Scanner** (camera trực tiếp).
 
 ---
 
 ## 🎯 Giới thiệu
-Ứng dụng sử dụng Computer Vision (OpenCV) kết hợp các thuật toán xác định Contours và áp dụng Thresholding linh hoạt (Otsu Threshold & Offset cắt Crop) nhằm nhận dạng thẻ Plickers trực tiếp qua đường truyền Camera (Live Webcam) hoặc từ tập ảnh thử nghiệm. 
-Toàn bộ mã sẽ theo dõi toạ độ điểm ảnh, phát hiện hình vuông mẫu của Plickers, cắt lấy lưới `5x5` rồi đối chiếu với Database đã cho trước để chỉ ra: **Mã Học sinh** và **Đáp án chọn A/B/C/D**.
 
-### Tỷ lệ nhận diện mẫu (Accuracy)
-Hiện tại hệ thống đạt độ chính xác đáng tin cậy trên các môi trường ánh sáng phức tạp, quét mẫu tự động báo khoảng **86%~ nhận diện thành công** từ kho ảnh sample (Pass 35/41 thẻ khó qua phép Canny Edge).
+Ứng dụng dùng Computer Vision (OpenCV) kết hợp thuật toán Contours + Otsu Thresholding để nhận dạng thẻ Plickers qua Webcam hoặc ảnh tĩnh.  
+Hệ thống xác định **Mã Học sinh** và **Đáp án A/B/C/D** bằng cách cắt lưới `5×5` trên thẻ và đối chiếu với database nhị phân.
+
+### Tỷ lệ nhận diện (Accuracy)
+~**86%** trên bộ ảnh sample 34 thẻ qua bộ lọc Canny Edge đa tham số.
+
+---
 
 ## 📁 Cấu trúc thư mục
-
-Dự án được phân cấp rõ ràng theo mô hình Layer Data và Source module:
 
 ```text
 plickers-python/
 │
-├── data/                      # 📁 Tầng dữ liệu & tài nguyên tĩnh
-│   ├── database/              # Chứa hệ cơ sở dữ liệu mẫu dạng Binary (card.data, card.list)
-│   ├── samples/               # Bộ ảnh mẫu dùng để Unit Test khả năng quét
-│   └── output/                # File logs đầu ra (vd: ket_qua.csv từ máy quét Camera)
+├── run_web.py                 # ▶ Khởi chạy Web App (Flask)
+├── run_scanner.py             # ▶ Khởi chạy Standalone Camera Scanner
+├── requirements.txt
+├── README.md
 │
-├── src/                       # 📁 Tầng giao diện logic chính
-│   ├── __init__.py
-│   ├── core/                  # Bộ xử lý chung (Core Module)
-│   │   ├── detector.py        # Object `PlickersDetector` - Trái tim OpenCV nhận diện khung
-│   │   └── utils.py           # Helper xử lý Toán (Tìm Mode)
-│   │
-│   ├── scripts/               # Các Pipeline tác vụ độc lập
-│   │   ├── generate_db.py     # Quét ảnh ở \data\samples để lập file Binary gốc
-│   │   └── evaluate.py        # Đánh giá Unit Test tính chính xác của thuật toán quét
-│   │
-│   └── app.py                 # (MAIN) Chạy Camera Scanner giám sát trực tiếp!
+├── data/                      # Tầng dữ liệu & tài nguyên tĩnh
+│   ├── database/              # Database nhị phân (card.data, card.list)
+│   ├── samples/               # Ảnh mẫu dùng để test (###-X.jpg)
+│   ├── class.json             # Danh sách học sinh (card_no → tên)
+│   ├── questions.json         # Ngân hàng câu hỏi ABCD
+│   └── output/                # Kết quả xuất ra (CSV sessions) — KHÔNG track git
 │
-├── requirements.txt           # Quản lý dependencies (Pip)
-└── README.md                  # Hướng dẫn chi tiết dự án
+└── src/                       # Tầng logic chính
+    ├── app.py                 # Standalone Camera Scanner (entry: main())
+    ├── core/
+    │   ├── detector.py        # PlickersDetector — trái tim OpenCV
+    │   └── utils.py           # Math helper (mode)
+    ├── scripts/
+    │   ├── evaluate.py        # Unit test độ chính xác trên tập mẫu
+    │   ├── generate_db.py     # Tạo database từ ảnh samples
+    │   ├── generate_pdf.py    # Xuất PDF thẻ in (ảnh mẫu)
+    │   └── generate_plickers_pdf.py  # Xuất PDF thẻ in (từ database matrix)
+    └── web/
+        ├── app_web.py         # Flask server — Teacher + Display
+        └── templates/
+            ├── teacher.html   # Teacher dashboard (camera + điều khiển)
+            └── display.html   # Student display (chiếu lên màn hình lớn)
 ```
 
-## 🛠️ Cài đặt & Hướng dẫn sử dụng
+---
 
-### B1: Cài đặt thư viện
-Yêu cầu bạn phải cài đặt `Python 3.x` trên thiết bị, sau đó chạy lệnh cài qua pip:
+## 🛠️ Cài đặt
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### B2: Sử dụng bộ Test để theo dõi độ nhạy
-Chạy thử nghiệm thuật toán lên tập mẫu nội bộ (Kiểm tra lại độ chính xác hiện tại qua Console terminal, xuất thành báo cáo BINGO / TẠT FAIL). Mẫu in kết quả hoàn thiện và không vỡ bảng mã tiếng Việt.
+---
+
+## 🚀 Cách sử dụng
+
+### 1. Web App (Khuyến nghị)
+
+Chạy Flask server từ **thư mục gốc**:
+
+```bash
+python run_web.py
+```
+
+Mở trình duyệt:
+- **Teacher Dashboard** → `http://localhost:5000/`  
+- **Student Display** → `http://localhost:5000/display`  
+
+**Luồng hoạt động:**
+1. Chọn câu hỏi ở Teacher Dashboard
+2. Nhấn **▶ BẮT ĐẦU QUÉT** — camera tự bật
+3. Học sinh giơ thẻ, hệ thống quét và hiển thị realtime
+4. Nhấn **👁 HIỆN ĐÁP ÁN** — chart kết quả hiện trên màn hình lớp
+5. Kết quả tự xuất ra `data/output/session_YYYYMMDD_HHmmss.csv`
+
+> **Lưu ý:** Camera khởi động lazy — chỉ bật khi client kết nối lần đầu.  
+> Reload dữ liệu không cần restart: `POST /api/reload_data`
+
+### 2. Standalone Camera Scanner
+
+```bash
+python run_scanner.py
+```
+
+Quét trực tiếp qua Webcam. Kết quả lưu vào `data/output/ket_qua.csv`.  
+Nhấn **`q`** để thoát.
+
+### 3. Kiểm tra độ chính xác
 
 ```bash
 python src/scripts/evaluate.py
 ```
 
-### B3: Chạy phần mềm Webcam (Scanner Chính)
-Bật ứng dụng giám sát thẻ. Phần mềm sẽ kết nối tới Window Direct Show `CAP_DSHOW` bắt khung hình và vẽ ô chữ nhật Xanh Lá bao lại mã thẻ + Tag Tên/Đáp án tìm thấy ngay trên màn hình.
+Chạy detector trên toàn bộ ảnh trong `data/samples/` và in kết quả BINGO / THẤT BẠI.
 
-```bash
-python src/app.py
-```
-> **Đầu ra**: Kết quả quét trực tiếp sau khi được bắt giữ sẽ chèn thêm thông tin Thời gian (Timestamp) và cất vào file log Excel tại `data/output/ket_qua.csv`.
+### 4. Tạo lại Database
 
-### (Tùy chọn) B4: Sinh dữ liệu mẫu lại Database
-Trong trường hợp bạn nhập các ảnh chuẩn xác mới và muốn lập các điểm tham chiếu ảnh ma trận (5x5) Binary, hãy chạy Pipeline tạo lại DB bằng lệnh:
 ```bash
 python src/scripts/generate_db.py
 ```
 
-## 👨‍💻 Khả năng nâng cấp
-Nhờ việc dọn dẹp biến thừa và đóng gói class cấu hình linh động:
-- Lõi `detector.py` có thể được Import và đưa vào các nền tảng Framework lớn như **FastAPI/Flask** hoặc **Django** để tạo REST API cho app di động.
-- Sẵn sàng tích hợp Module xử lý `OpenCV` khác không gây tác động lên logic luồng Camera.
+Cần thiết khi thêm ảnh mẫu mới vào `data/samples/`.
+
+### 5. In thẻ PDF
+
+```bash
+# PDF từ database matrix (đẹp hơn, khuyến nghị)
+python src/scripts/generate_plickers_pdf.py
+
+# PDF từ ảnh mẫu (xem trước ảnh thật)
+python src/scripts/generate_pdf.py
+```
+
+---
+
+## 🔌 API Endpoints (Web App)
+
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| GET | `/` | Teacher dashboard |
+| GET | `/display` | Student display |
+| GET | `/video_feed` | MJPEG camera stream |
+| GET | `/api/state` | Trạng thái hiện tại (JSON) |
+| GET | `/api/events` | SSE realtime stream |
+| GET | `/api/class` | Danh sách học sinh |
+| GET | `/api/questions` | Ngân hàng câu hỏi |
+| POST | `/api/start` | Bắt đầu phiên quét |
+| POST | `/api/stop` | Tạm dừng quét |
+| POST | `/api/reveal` | Hiện đáp án + lưu CSV |
+| POST | `/api/reset` | Reset phiên mới |
+| POST | `/api/reload_data` | Reload JSON không restart server |
+
+---
+
+## 👨‍💻 Nâng cấp & Mở rộng
+
+- `PlickersDetector` trong `core/detector.py` có thể import và nhúng vào bất kỳ framework nào (FastAPI, Django…)
+- Thêm câu hỏi: chỉnh sửa `data/questions.json`
+- Thêm học sinh: chỉnh sửa `data/class.json`, gọi `POST /api/reload_data`
+- Thêm thẻ mới: thêm ảnh vào `data/samples/`, chạy lại `generate_db.py`
