@@ -10,12 +10,15 @@ import json
 import time
 import csv
 import threading
+import logging
 from datetime import datetime
 
 
 import cv2
 import numpy as np
 from flask import Flask, render_template, Response, jsonify, request, stream_with_context
+
+logger = logging.getLogger(__name__)
 
 # ─── Path setup ───────────────────────────────────────────────────────────────
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
