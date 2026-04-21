@@ -10,12 +10,15 @@ import json
 import time
 import csv
 import threading
+import logging
 from datetime import datetime
 
 
 import cv2
 import numpy as np
 from flask import Flask, render_template, Response, jsonify, request, stream_with_context
+
+logger = logging.getLogger(__name__)
 
 # ─── Path setup ───────────────────────────────────────────────────────────────
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -62,10 +65,42 @@ def load_class() -> dict:
         with _data_lock:
             if _class_data is None:
                 path = os.path.join(DATA_DIR, "class.json")
-                with open(path, encoding="utf-8") as f:
-                    _class_data = json.load(f)
-                # Build O(1) lookup dict — key là str để khớp JSON serialization
-                _student_lookup = {str(s["card_no"]): s["name"] for s in _class_data.get("students", [])}
+                try:
+                    with open(path, encoding="utf-8") as f:
+                        data = json.load(f)
+
+                    # Validate structure
+                    if not isinstance(data, dict):
+                        raise ValueError("class.json phải là object")
+                    if "students" not in data:
+                        raise ValueError("class.json thiếu trường 'students'")
+                    if not isinstance(data["students"], list):
+                        raise ValueError("'students' phải là array")
+
+                    # Validate each student
+                    for i, student in enumerate(data["students"]):
+                        if not isinstance(student, dict):
+                            raise ValueError(f"Student {i} phải là object")
+                        if "card_no" not in student or "name" not in student:
+                            raise ValueError(f"Student {i} thiếu 'card_no' hoặc 'name'")
+                        if not isinstance(student["card_no"], int) or not isinstance(student["name"], str):
+                            raise ValueError(f"Student {i}: card_no phải là số, name phải là string")
+
+                    _class_data = data
+                    # Build O(1) lookup dict — key là str để khớp JSON serialization
+                    _student_lookup = {str(s["card_no"]): s["name"] for s in _class_data.get("students", [])}
+                    logger.info(f"Loaded {len(_class_data['students'])} students from class.json")
+
+                except FileNotFoundError:
+                    logger.error(f"Không tìm thấy file: {path}")
+                    raise
+                except json.JSONDecodeError as e:
+                    logger.error(f"Lỗi parse JSON trong {path}: {e}")
+                    raise
+                except Exception as e:
+                    logger.error(f"Lỗi load class.json: {e}")
+                    raise
+
     return _class_data
 
 
@@ -76,8 +111,41 @@ def load_questions() -> list:
         with _data_lock:
             if _questions_data is None:
                 path = os.path.join(DATA_DIR, "questions.json")
-                with open(path, encoding="utf-8") as f:
-                    _questions_data = json.load(f)
+                try:
+                    with open(path, encoding="utf-8") as f:
+                        data = json.load(f)
+
+                    # Validate structure
+                    if not isinstance(data, list):
+                        raise ValueError("questions.json phải là array")
+
+                    # Validate each question
+                    for i, question in enumerate(data):
+                        if not isinstance(question, dict):
+                            raise ValueError(f"Question {i} phải là object")
+                        required_fields = ["id", "text", "correct", "options"]
+                        for field in required_fields:
+                            if field not in question:
+                                raise ValueError(f"Question {i} thiếu trường '{field}'")
+
+                        if not isinstance(question["options"], dict):
+                            raise ValueError(f"Question {i}: 'options' phải là object")
+                        if question["correct"] not in question["options"]:
+                            raise ValueError(f"Question {i}: đáp án đúng '{question['correct']}' không có trong options")
+
+                    _questions_data = data
+                    logger.info(f"Loaded {len(_questions_data)} questions from questions.json")
+
+                except FileNotFoundError:
+                    logger.error(f"Không tìm thấy file: {path}")
+                    raise
+                except json.JSONDecodeError as e:
+                    logger.error(f"Lỗi parse JSON trong {path}: {e}")
+                    raise
+                except Exception as e:
+                    logger.error(f"Lỗi load questions.json: {e}")
+                    raise
+
     return _questions_data
 
 
@@ -125,78 +193,122 @@ def _camera_worker() -> None:
     global output_frame
     detector = get_detector()
 
-    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAM_WIDTH)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAM_HEIGHT)
-    cap.set(cv2.CAP_PROP_FPS, CAM_FPS)
+    try:
+        cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+        if not cap.isOpened():
+            raise RuntimeError("Không thể mở camera. Kiểm tra kết nối camera.")
 
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            time.sleep(0.1)
-            continue
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAM_WIDTH)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAM_HEIGHT)
+        cap.set(cv2.CAP_PROP_FPS, CAM_FPS)
 
-        display = frame.copy()
-
-        with state_lock:
-            scanning = state["scanning"]
-
-        if scanning:
-            found = detector.process_image(frame)
-            for card_id, cnt in found:
-                parts = str(card_id).split("-")
-                try:
-                    card_no_str = parts[0]  # giữ dạng str ngay từ đầu
-                    answer = parts[1] if len(parts) > 1 else "?"
-                except Exception:
-                    continue
-
-                # Lưu kết quả — first scan wins, key luôn là str
-                with state_lock:
-                    if card_no_str not in state["results"]:
-                        state["results"][card_no_str] = answer
-
-                # Vẽ bounding box
-                try:
-                    rect = cv2.minAreaRect(cnt)
-                    box = np.int32(cv2.boxPoints(rect))
-                    cv2.drawContours(display, [box], 0, (0, 255, 100), 2)
-                except Exception:
-                    pass
-
-                # Nhãn đáp án ở tâm
-                try:
-                    M = cv2.moments(cnt)
-                    if M["m00"] != 0:
-                        cx = int(M["m10"] / M["m00"])
-                        cy = int(M["m01"] / M["m00"])
-                        cv2.putText(display, answer, (cx - 15, cy + 15), cv2.FONT_HERSHEY_DUPLEX, 1.5, (0, 0, 255), 3)
-                except Exception:
-                    pass
-
-                # Tag tên học sinh
-                try:
-                    x, y, w, h = cv2.boundingRect(cnt)
-                    name = get_student_name(card_no_str)
-                    cv2.putText(display, name, (x, max(y - 8, 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 200, 0), 2)
-                except Exception:
-                    pass
-
-        # HUD status bar
-        with state_lock:
-            result_count = len(state["results"])
-            scan = state["scanning"]
-
-        cv2.rectangle(display, (0, 0), (220, 38), (0, 0, 0), -1)
-        status_txt = f"DANG QUET ({result_count} the)" if scan else "TAM DUNG"
-        color = (0, 220, 80) if scan else (60, 140, 255)
-        cv2.putText(display, status_txt, (8, 27), cv2.FONT_HERSHEY_SIMPLEX, 0.65, color, 2)
-
-        _, buf = cv2.imencode(".jpg", display, [cv2.IMWRITE_JPEG_QUALITY, FRAME_QUALITY])
+        logger.info("Camera worker started successfully")
+    except Exception as e:
+        logger.error(f"Camera initialization failed: {e}")
+        # Set error frame
+        error_img = np.zeros((CAM_HEIGHT, CAM_WIDTH, 3), dtype=np.uint8)
+        cv2.putText(error_img, "CAMERA ERROR", (50, CAM_HEIGHT//2 - 50),
+                   cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 3)
+        cv2.putText(error_img, str(e), (50, CAM_HEIGHT//2 + 50),
+                   cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        _, buf = cv2.imencode(".jpg", error_img, [cv2.IMWRITE_JPEG_QUALITY, FRAME_QUALITY])
         with frame_lock:
             output_frame = buf.tobytes()
+        return
 
-        time.sleep(1.0 / CAM_FPS)
+    while True:
+        try:
+            ret, frame = cap.read()
+            if not ret:
+                # Camera disconnected or error
+                logger.warning("Failed to read frame from camera")
+                error_img = np.zeros((CAM_HEIGHT, CAM_WIDTH, 3), dtype=np.uint8)
+                cv2.putText(error_img, "CAMERA DISCONNECTED", (50, CAM_HEIGHT//2),
+                           cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 0, 255), 2)
+                _, buf = cv2.imencode(".jpg", error_img, [cv2.IMWRITE_JPEG_QUALITY, FRAME_QUALITY])
+                with frame_lock:
+                    output_frame = buf.tobytes()
+                time.sleep(1.0)  # Wait before retry
+                continue
+
+            display = frame.copy()
+
+            with state_lock:
+                scanning = state["scanning"]
+
+            if scanning:
+                found = detector.process_image(frame)
+                for card_id, cnt in found:
+                    parts = str(card_id).split("-")
+                    try:
+                        card_no_str = parts[0]  # giữ dạng str ngay từ đầu
+                        answer = parts[1] if len(parts) > 1 else "?"
+                    except Exception:
+                        continue
+
+                    # Lưu kết quả — first scan wins, key luôn là str
+                    with state_lock:
+                        if card_no_str not in state["results"]:
+                            state["results"][card_no_str] = answer
+
+                    # Vẽ bounding box
+                    try:
+                        rect = cv2.minAreaRect(cnt)
+                        box = np.int32(cv2.boxPoints(rect))
+                        cv2.drawContours(display, [box], 0, (0, 255, 100), 2)
+                    except Exception:
+                        pass
+
+                    # Nhãn đáp án ở tâm
+                    try:
+                        M = cv2.moments(cnt)
+                        if M["m00"] != 0:
+                            cx = int(M["m10"] / M["m00"])
+                            cy = int(M["m01"] / M["m00"])
+                            cv2.putText(display, answer, (cx - 15, cy + 15), cv2.FONT_HERSHEY_DUPLEX, 1.5, (0, 0, 255), 3)
+                    except Exception:
+                        pass
+
+                    # Tag tên học sinh
+                    try:
+                        x, y, w, h = cv2.boundingRect(cnt)
+                        name = get_student_name(card_no_str)
+                        cv2.putText(display, name, (x, max(y - 8, 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 200, 0), 2)
+                    except Exception:
+                        pass
+
+            # HUD status bar
+            with state_lock:
+                result_count = len(state["results"])
+                scan = state["scanning"]
+
+            cv2.rectangle(display, (0, 0), (220, 38), (0, 0, 0), -1)
+            status_txt = f"DANG QUET ({result_count} the)" if scan else "TAM DUNG"
+            color = (0, 220, 80) if scan else (60, 140, 255)
+            cv2.putText(display, status_txt, (8, 27), cv2.FONT_HERSHEY_SIMPLEX, 0.65, color, 2)
+
+            _, buf = cv2.imencode(".jpg", display, [cv2.IMWRITE_JPEG_QUALITY, FRAME_QUALITY])
+            with frame_lock:
+                output_frame = buf.tobytes()
+
+            time.sleep(1.0 / CAM_FPS)
+
+        except Exception as e:
+            logger.error(f"Camera worker error: {e}")
+            try:
+                cap.release()
+            except:
+                pass
+            # Try to restart camera
+            time.sleep(2.0)
+            try:
+                cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAM_WIDTH)
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAM_HEIGHT)
+                cap.set(cv2.CAP_PROP_FPS, CAM_FPS)
+            except Exception as restart_e:
+                logger.error(f"Failed to restart camera: {restart_e}")
+                break
 
     cap.release()
 

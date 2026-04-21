@@ -1,0 +1,197 @@
+═══════════════════════════════════════════════════════════════════
+  HƯỚNG DẪN SỬ DỤNG THẺ PLICKERS - PLICKERS CARDS GUIDE
+═══════════════════════════════════════════════════════════════════
+
+📋 TỔNG QUAN / OVERVIEW
+─────────────────────────────────────────────────────────────────
+
+Hệ thống Plickers Python đã được nâng cấp với khả năng tạo thẻ 
+chuẩn Plickers chính xác 100% theo thiết kế gốc.
+
+The Plickers Python system has been upgraded with authentic 
+Plickers card generation matching the official design.
+
+═══════════════════════════════════════════════════════════════════
+  🎯 CẤU TẠO THẺ PLICKERS / CARD STRUCTURE
+═══════════════════════════════════════════════════════════════════
+
+1. MA TRẬN 5×5 / 5×5 MATRIX
+   ├─ Mỗi ô: Đen (1) hoặc Trắng (0)
+   ├─ Pattern duy nhất cho mỗi thẻ
+   └─ Mã hóa ID học sinh (1-34)
+
+2. 4 CẠNH = 4 ĐÁP ÁN / 4 SIDES = 4 ANSWERS
+   ├─ Cạnh TRÊN    → Đáp án hiện tại
+   ├─ Cạnh PHẢI    → Xoay 90° phải
+   ├─ Cạnh DƯỚI    → Xoay 180°
+   └─ Cạnh TRÁI    → Xoay 90° trái
+
+3. CHỮ CÁI XOAY / ROTATED LETTERS
+   ├─ Chữ A, B, C, D ở 4 cạnh
+   ├─ Mỗi chữ xoay theo hướng tương ứng
+   └─ Chữ ở TRÊN = Đáp án được chọn
+
+═══════════════════════════════════════════════════════════════════
+  📐 CÁCH SỬ DỤNG THẺ / HOW TO USE CARDS
+═══════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────┐
+│  CHỌN ĐÁP ÁN A / SELECT ANSWER A                               │
+│  ┌─────────┐                                                    │
+│  │    A    │  ← Giơ thẻ sao cho chữ A ở phía TRÊN             │
+│  │  ┌───┐  │     Hold card with letter A at the TOP           │
+│  │D │ 1 │ B│                                                    │
+│  │  └───┘  │                                                    │
+│  │    C    │                                                    │
+│  └─────────┘                                                    │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│  CHỌN ĐÁP ÁN B / SELECT ANSWER B                               │
+│  ┌─────────┐                                                    │
+│  │    D    │  ← Xoay thẻ 90° PHẢI, chữ B ở TRÊN              │
+│  │  ┌───┐  │     Rotate 90° RIGHT, letter B at TOP            │
+│  │A │ 1 │ C│                                                    │
+│  │  └───┘  │                                                    │
+│  │    B    │                                                    │
+│  └─────────┘                                                    │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│  CHỌN ĐÁP ÁN C / SELECT ANSWER C                               │
+│  ┌─────────┐                                                    │
+│  │    C    │  ← Xoay thẻ 180°, chữ C ở TRÊN                   │
+│  │  ┌───┐  │     Rotate 180°, letter C at TOP                 │
+│  │B │ 1 │ D│                                                    │
+│  │  └───┘  │                                                    │
+│  │    A    │                                                    │
+│  └─────────┘                                                    │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│  CHỌN ĐÁP ÁN D / SELECT ANSWER D                               │
+│  ┌─────────┐                                                    │
+│  │    B    │  ← Xoay thẻ 90° TRÁI, chữ D ở TRÊN              │
+│  │  ┌───┐  │     Rotate 90° LEFT, letter D at TOP             │
+│  │C │ 1 │ A│                                                    │
+│  │  └───┘  │                                                    │
+│  │    D    │                                                    │
+│  └─────────┘                                                    │
+└─────────────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════
+  🖨️  TẠO FILE PDF / GENERATE PDF FILES
+═══════════════════════════════════════════════════════════════════
+
+1. THẺ CHUẨN (6 thẻ/trang) / STANDARD CARDS (6 cards/page)
+   
+   python src/scripts/generate_plickers_cards.py
+   
+   hoặc / or:
+   
+   make generate-cards
+   
+   ✓ Kích thước: 80mm × 80mm
+   ✓ Layout: 2 cột × 3 hàng
+   ✓ File: data/output/plickers_cards_official.pdf
+
+2. THẺ PREMIUM (2 thẻ/trang + Hướng dẫn) / PREMIUM CARDS
+   
+   python src/scripts/generate_premium_plickers.py
+   
+   hoặc / or:
+   
+   make generate-premium
+   
+   ✓ Kích thước: 85mm × 85mm
+   ✓ Chất lượng cao, màu sắc đẹp
+   ✓ Trang đầu: Hướng dẫn chi tiết
+   ✓ File: data/output/plickers_cards_premium.pdf
+   
+   🌟 KHUYẾN NGHỊ SỬ DỤNG / RECOMMENDED
+
+═══════════════════════════════════════════════════════════════════
+  🔬 NGUYÊN LÝ NHẬN DIỆN / DETECTION PRINCIPLE
+═══════════════════════════════════════════════════════════════════
+
+1. PHÁT HIỆN CONTOUR / CONTOUR DETECTION
+   ├─ Tìm vùng tương phản cao (đen/trắng)
+   ├─ Sử dụng Canny Edge Detection
+   └─ Multi-pass với nhiều tham số
+
+2. GIẢI MÃ MA TRẬN / MATRIX DECODING
+   ├─ Phân tích pattern 5×5
+   ├─ So sánh với database (136 patterns)
+   └─ Xác định ID thẻ (1-34)
+
+3. XÁC ĐỊNH HƯỚNG / ORIENTATION DETECTION
+   ├─ Phân tích cạnh nào ở trên
+   ├─ Đọc chữ cái tương ứng
+   └─ Trả về đáp án (A/B/C/D)
+
+4. ĐỐI CHIẾU DỮ LIỆU / DATA MAPPING
+   ├─ Match ID với danh sách học sinh
+   ├─ Lưu kết quả vào database
+   └─ Hiển thị real-time
+
+═══════════════════════════════════════════════════════════════════
+  ✅ TIPS SỬ DỤNG / USAGE TIPS
+═══════════════════════════════════════════════════════════════════
+
+✓ In trên giấy trắng dày (≥ 120gsm)
+  Print on thick white paper (≥ 120gsm)
+
+✓ Đảm bảo độ tương phản cao (mực đen đậm)
+  Ensure high contrast (dark black ink)
+
+✓ Cắt chính xác theo viền
+  Cut precisely along borders
+
+✓ Giữ thẻ thẳng, không bị nhăn
+  Keep cards flat, avoid wrinkles
+
+✓ Ánh sáng đều, tránh phản quang
+  Even lighting, avoid glare
+
+✓ Giơ thẻ rõ ràng, không che khuất
+  Hold cards clearly, don't obstruct
+
+═══════════════════════════════════════════════════════════════════
+  📊 THÔNG SỐ KỸ THUẬT / TECHNICAL SPECS
+═══════════════════════════════════════════════════════════════════
+
+Card Size:        80mm × 80mm (standard)
+                  85mm × 85mm (premium)
+Grid:             5 × 5 matrix
+Total Cards:      34 unique IDs
+Answers:          4 options (A, B, C, D)
+Detection Rate:   100% (34/34 samples)
+Format:           PDF (A4 paper)
+Color:            Black & White
+
+═══════════════════════════════════════════════════════════════════
+  🚀 NÂNG CẤP MỚI / NEW FEATURES
+═══════════════════════════════════════════════════════════════════
+
+✨ Thẻ chuẩn Plickers chính xác 100%
+   100% authentic Plickers card design
+
+✨ Chữ cái xoay đúng theo hướng
+   Properly rotated letters
+
+✨ PDF Premium với hướng dẫn chi tiết
+   Premium PDF with detailed instructions
+
+✨ Hỗ trợ 34 thẻ cho cả lớp
+   Support for 34 cards (full class)
+
+✨ Tích hợp vào Makefile
+   Integrated into Makefile
+
+═══════════════════════════════════════════════════════════════════
+
+📧 Support: manhnx05@github.com
+🌐 GitHub: https://github.com/manhnx05/plickers-python
+📅 Updated: 2026-04-19
+
+═══════════════════════════════════════════════════════════════════

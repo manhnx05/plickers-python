@@ -27,3 +27,7 @@ Thumbs.db
 
 # Logs
 logs/
+
+
+#.md
+!README.md
