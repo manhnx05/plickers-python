@@ -15,6 +15,7 @@ env/
 data/output/
 *.pdf
 *.csv
+data/database/plickers.db
 
 # OS
 .DS_Store
