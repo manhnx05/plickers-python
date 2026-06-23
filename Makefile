@@ -21,17 +21,17 @@ install-dev:
 	pip install -r requirements-dev.txt
 
 test:
-	python test_all.py
+	python tests/test_plickers.py
 
 test-coverage:
 	pytest --cov=src --cov-report=html --cov-report=term
 
 lint:
-	flake8 src/ --max-line-length=120 --exclude=__pycache__
-	mypy src/ --ignore-missing-imports
+	flake8 src/ tests/ --max-line-length=120 --exclude=__pycache__
+	mypy src/ tests/ --ignore-missing-imports
 
 format:
-	black src/ test_all.py run_*.py
+	black src/ tests/ run_*.py
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true

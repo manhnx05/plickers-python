@@ -1,0 +1,12 @@
+# Include data files
+recursive-include data *
+
+# Include templates and static files
+recursive-include src/web/templates *
+recursive-include src/web/static *
+
+# Include documentation
+include README.md LICENSE
+
+# Exclude output and temp files
+recursive-exclude data/output *

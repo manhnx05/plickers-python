@@ -53,9 +53,48 @@ plickers-python/
 
 ## 🛠️ Cài đặt
 
-```bash
-pip install -r requirements.txt
-```
+### Cách 1: Sử dụng script tự động (đề xuất cho Windows)
+1. Mở PowerShell (hoặc Command Prompt) tại thư mục gốc của project
+2. Chạy script tương ứng:
+   - PowerShell:
+     ```powershell
+     .\setup.ps1
+     ```
+   - Command Prompt:
+     ```cmd
+     setup.bat
+     ```
+
+### Cách 2: Thực hiện thủ công
+1. Tạo môi trường ảo:
+   ```bash
+   python -m venv .venv
+   ```
+2. Kích hoạt môi trường ảo:
+   - **Windows PowerShell**:
+     ```powershell
+     .venv\Scripts\Activate.ps1
+     ```
+   - **Windows Command Prompt**:
+     ```cmd
+     .venv\Scripts\activate.bat
+     ```
+   - **Linux/macOS**:
+     ```bash
+     source .venv/bin/activate
+     ```
+3. Cài đặt dependencies:
+   ```bash
+   # Cài đặt dependencies chính
+   pip install -r requirements.txt
+
+   # (Tùy chọn) Cài đặt dependencies phát triển (testing, linting...)
+   pip install -r requirements-dev.txt
+   ```
+
+### Lưu ý
+- Sau khi cài đặt xong, hãy đảm bảo môi trường ảo được kích hoạt trước khi chạy project
+- Để tắt môi trường ảo, chạy lệnh: `deactivate`
 
 ---
 
