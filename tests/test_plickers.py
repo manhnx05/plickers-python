@@ -4,7 +4,9 @@ import json
 import threading
 import importlib.metadata
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Add project root to path (since we're in tests/)
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
 
 PASS = "[PASS]"
 FAIL = "[FAIL]"
@@ -279,7 +281,7 @@ print("=" * 60)
 
 import cv2
 
-SAMPLES_DIR = os.path.join(os.path.dirname(__file__), "data", "samples")
+SAMPLES_DIR = os.path.join(project_root, "data", "samples")
 sample_files = sorted([f for f in os.listdir(SAMPLES_DIR) if f.endswith(".jpg")])
 print(f"  {INFO} Found {len(sample_files)} sample images")
 
@@ -318,7 +320,7 @@ print("\n" + "=" * 60)
 print("  TEST 7: FILE STRUCTURE")
 print("=" * 60)
 
-ROOT = os.path.dirname(__file__)
+ROOT = project_root
 EXPECTED_FILES = [
     "run_web.py",
     "run_scanner.py",
@@ -342,6 +344,7 @@ EXPECTED_FILES = [
     "src/scripts/generate_db.py",
     "src/scripts/generate_pdf.py",
     "src/scripts/generate_plickers_pdf.py",
+    "tests/test_plickers.py",
 ]
 
 for fpath in EXPECTED_FILES:
