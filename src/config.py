@@ -50,6 +50,7 @@ CLASS_JSON = os.path.join(DATA_DIR, "class.json")
 QUESTIONS_JSON = os.path.join(DATA_DIR, "questions.json")
 CARD_DATA = os.path.join(DATABASE_DIR, "card.data")
 CARD_LIST = os.path.join(DATABASE_DIR, "card.list")
+SQLITE_DB = os.path.join(DATABASE_DIR, "plickers.db")  # New SQLite database path
 SCANNER_CSV = os.path.join(OUTPUT_DIR, "ket_qua.csv")
 
 # ─── Logging Settings ─────────────────────────────────────────────────────────
