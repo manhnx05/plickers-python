@@ -1,7 +1,7 @@
 """
 Generate Plickers-style printable card PDF.
 Chạy bằng: python src/scripts/generate_plickers_pdf.py
-Yêu cầu: data/database/card.data và card.list đã được tạo bởi generate_db.py
+Yêu cầu: data/database/plickers.db hoặc card.data/card.list đã được tạo.
 """
 
 import os
@@ -12,20 +12,37 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.lib import colors
 
+# Add project root to path
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
 DATA_DIR = os.path.join(PROJECT_ROOT, "data")
 DB_DATA = os.path.join(DATA_DIR, "database", "card.data")
 DB_LIST = os.path.join(DATA_DIR, "database", "card.list")
 OUTPUT = os.path.join(DATA_DIR, "output", "plickers_cards_print.pdf")
 
+from src.config import SQLITE_DB
+from src.core.db import load_all_cards
+
 
 def _load_database() -> dict:
-    """Load card database từ file binary. Raise rõ ràng nếu chưa tồn tại."""
+    """Load card database từ file binary hoặc SQLite. Raise rõ ràng nếu chưa tồn tại."""
+    # Try SQLite first
+    if os.path.exists(SQLITE_DB):
+        try:
+            card_data, card_list = load_all_cards()
+            if card_data and card_list:
+                return {cid: mat for mat, cid in zip(card_data, card_list)}
+        except Exception:
+            pass
+
+    # Fall back to pickle
     if not os.path.exists(DB_DATA) or not os.path.exists(DB_LIST):
         raise FileNotFoundError(
             f"Database chưa tồn tại.\n"
             f"Hãy chạy trước: python src/scripts/generate_db.py\n"
-            f"Đường dẫn cần có:\n  {DB_DATA}\n  {DB_LIST}"
+            f"Đường dẫn cần có:\n  {SQLITE_DB}\n  hoặc\n  {DB_DATA}\n  {DB_LIST}"
         )
     with open(DB_DATA, "rb") as f:
         card_data = pickle.load(f)
