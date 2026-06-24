@@ -18,6 +18,14 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from src.core.detector import PlickersDetector
+from src.config import (
+    COOLDOWN_TIME,
+    CAM_WIDTH,
+    CAM_HEIGHT,
+    CAM_FPS,
+    HUD_MAX_ROWS,
+    SCANNER_CSV
+)
 
 # Windows-only sound (optional)
 try:
@@ -26,12 +34,7 @@ except ImportError:
     winsound = None
 
 # ─── Constants ────────────────────────────────────────────────────────────────
-COOLDOWN_TIME = 5.0  # giây — chặn ghi đè thẻ liên tiếp
-CAM_WIDTH = 800
-CAM_HEIGHT = 600
-CAM_FPS = 30
-CSV_PATH = os.path.join(PROJECT_ROOT, "data", "output", "ket_qua.csv")
-HUD_MAX_ROWS = 10  # số thẻ tối đa hiển thị trong HUD
+CSV_PATH = SCANNER_CSV
 
 
 def _init_csv(path: str) -> None:
