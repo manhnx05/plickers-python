@@ -21,18 +21,22 @@ from flask import Flask, render_template, Response, jsonify, request, stream_wit
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, PROJECT_ROOT)
 from src.core.detector import PlickersDetector
+from src.config import (
+    FLASK_SECRET_KEY,
+    FLASK_HOST,
+    FLASK_PORT,
+    FLASK_DEBUG,
+    CAM_WIDTH,
+    CAM_HEIGHT,
+    CAM_FPS,
+    SSE_INTERVAL,
+    FRAME_QUALITY,
+    DATA_DIR
+)
 
 # ─── Flask app ────────────────────────────────────────────────────────────────
 app = Flask(__name__, template_folder="templates", static_folder="static")
-app.config["SECRET_KEY"] = "plickers-secret"
-
-# ─── Config ───────────────────────────────────────────────────────────────────
-DATA_DIR = os.path.join(PROJECT_ROOT, "data")
-CAM_WIDTH = 800
-CAM_HEIGHT = 600
-CAM_FPS = 30
-SSE_INTERVAL = 0.4  # giây
-FRAME_QUALITY = 75  # JPEG quality
+app.config["SECRET_KEY"] = FLASK_SECRET_KEY
 
 # ─── Detector (lazy — khởi tạo 1 lần duy nhất) ───────────────────────────────
 _detector: PlickersDetector | None = None
@@ -383,8 +387,8 @@ def _save_results() -> None:
 if __name__ == "__main__":
     print("=" * 58)
     print("  Plickers Classroom Web App")
-    print("  Teacher Dashboard : http://localhost:5000/")
-    print("  Student Display   : http://localhost:5000/display")
+    print(f"  Teacher Dashboard : http://localhost:{FLASK_PORT}/")
+    print(f"  Student Display   : http://localhost:{FLASK_PORT}/display")
     print("  Camera starts lazily when first client connects.")
     print("=" * 58)
-    app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
+    app.run(host=FLASK_HOST, port=FLASK_PORT, debug=FLASK_DEBUG, threaded=True)
