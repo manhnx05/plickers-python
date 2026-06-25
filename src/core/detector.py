@@ -210,6 +210,44 @@ class PlickersDetector:
 
         return list(found_cards.items())
 
+    def _check_card_crop(self, crop: np.ndarray) -> Optional[str]:
+        """
+        Helper function to check a cropped image for valid card, trying all 4 rotations.
+        
+        Args:
+            crop: Cropped binary image
+            
+        Returns:
+            Card ID if found, None otherwise
+        """
+        # Check original crop
+        card_id = self.check_card_matrix(crop)
+        if card_id:
+            return card_id
+        # Try all 4 rotations
+        for k in range(1, 4):
+            rotated = cv2.rotate(crop, cv2.ROTATE_90_CLOCKWISE * k)
+            card_id = self.check_card_matrix(rotated)
+            if card_id:
+                return card_id
+        return None
+
+    def _is_valid_crop(self, crop: np.ndarray) -> bool:
+        """
+        Check if crop dimensions and brightness are valid.
+        
+        Args:
+            crop: Cropped image
+            
+        Returns:
+            True if valid, False otherwise
+        """
+        return (
+            crop.shape[0] > MIN_CARD_SIZE and
+            crop.shape[1] > MIN_CARD_SIZE and
+            MIN_AVG_BRIGHTNESS < np.average(crop) < MAX_AVG_BRIGHTNESS
+        )
+
     def _extract_card_from_contour(self, cnt: np.ndarray, thresh: np.ndarray) -> Optional[str]:
         """
         Extract and identify card from contour. First tries perspective transform,
@@ -237,49 +275,38 @@ class PlickersDetector:
                 # Apply perspective transform to get top-down view
                 warped = self._four_point_transform(thresh, pts)
                 
-                # Check size and brightness
-                if (warped.shape[0] > MIN_CARD_SIZE and 
-                    warped.shape[1] > MIN_CARD_SIZE and
-                    MIN_AVG_BRIGHTNESS < np.average(warped) < MAX_AVG_BRIGHTNESS):
-                    
-                    # Try all 4 rotations (0°, 90°, 180°, 270°) to match database
-                    for k in range(4):
-                        rotated = cv2.rotate(warped, cv2.ROTATE_90_CLOCKWISE * k)
-                        card_id = self.check_card_matrix(rotated)
-                        if card_id:
-                            break
+                # Check size and brightness, then try to match
+                if self._is_valid_crop(warped):
+                    card_id = self._check_card_crop(warped)
         except Exception:
             pass
         
         # If perspective transform didn't work, fall back to original method (for sample images)
         if not card_id:
-            # Original boundary extraction logic matched against DB generator
-            if cnt[:, 0, :].max() - cnt[:, 0, :].min() > cnt[:, :, 0].max() - cnt[:, :, 0].min():
-                diff = cnt[:, :, 0].max() - cnt[:, :, 0].min()
-                card = thresh[cnt[:, 0, :].min() : cnt[:, 0, :].min() + diff, cnt[:, :, 0].min() : cnt[:, :, 0].max()]
-                if len(card) > MIN_CARD_SIZE and MIN_AVG_BRIGHTNESS < np.average(card) < MAX_AVG_BRIGHTNESS:
-                    card_id = self.check_card_matrix(card)
+            y_min = cnt[:, 0, :].min()
+            y_max = cnt[:, 0, :].max()
+            x_min = cnt[:, :, 0].min()
+            x_max = cnt[:, :, 0].max()
 
+            if (y_max - y_min) > (x_max - x_min):
+                diff = x_max - x_min
+                # Try first crop
+                crop1 = thresh[y_min:y_min + diff, x_min:x_max]
+                if self._is_valid_crop(crop1):
+                    card_id = self.check_card_matrix(crop1)
                 if not card_id:
-                    card = thresh[
-                        abs(cnt[:, 0, :].max() - diff) : cnt[:, 0, :].max(), cnt[:, :, 0].min() : cnt[:, :, 0].max()]
-                    if (
-                        len(card) > MIN_CARD_SIZE
-                        and MIN_AVG_BRIGHTNESS < np.average(card) < MAX_AVG_BRIGHTNESS
-                    ):
-                        card_id = self.check_card_matrix(card)
+                    crop2 = thresh[abs(y_max - diff):y_max, x_min:x_max]
+                    if self._is_valid_crop(crop2):
+                        card_id = self.check_card_matrix(crop2)
             else:
-                diff = cnt[:, 0, :].max() - cnt[:, 0, :].min()
-                card = thresh[cnt[:, 0, :].min() : cnt[:, 0, :].max(), cnt[:, :, 0].min() : cnt[:, :, 0].min() + diff]
-                if len(card) > MIN_CARD_SIZE and MIN_AVG_BRIGHTNESS < np.average(card) < MAX_AVG_BRIGHTNESS:
-                    card_id = self.check_card_matrix(card)
-
+                diff = y_max - y_min
+                # Try first crop
+                crop1 = thresh[y_min:y_max, x_min:x_min + diff]
+                if self._is_valid_crop(crop1):
+                    card_id = self.check_card_matrix(crop1)
                 if not card_id:
-                    card = thresh[cnt[:, 0, :].min() : cnt[:, 0, :].max(), cnt[:, :, 0].max() - diff : cnt[:, :, 0].max()]
-                    if (
-                        len(card) > MIN_CARD_SIZE
-                        and MIN_AVG_BRIGHTNESS < np.average(card) < MAX_AVG_BRIGHTNESS
-                    ):
-                        card_id = self.check_card_matrix(card)
+                    crop2 = thresh[y_min:y_max, max(x_max - diff, 0):x_max]
+                    if self._is_valid_crop(crop2):
+                        card_id = self.check_card_matrix(crop2)
                         
         return card_id
