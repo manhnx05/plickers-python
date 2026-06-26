@@ -61,7 +61,11 @@ def init_detector():
     return f"{len(detector.card_data)} matrices, {len(detector.card_list)} IDs"
 
 
-check("PlickersDetector init", init_detector)
+# Initialize detector inside app context
+from src.web.app_web import app
+with app.app_context():
+    check("PlickersDetector init", init_detector)
+    detector._load_cards()
 
 
 def check_db_integrity():
@@ -163,14 +167,26 @@ check("Initial state", test_state_initial)
 check("Concurrent writes", test_state_concurrent_write)
 
 
-# ─── TEST 5: FLASK API ────────────────────────────────────────────────────────
+# ─── TEST 5: FLASK API ENDPOINTS ─────────────────────────────────────────────────
 print("\n" + "=" * 60)
 print("  TEST 5: FLASK API ENDPOINTS")
 print("=" * 60)
 
 from src.web.app_web import app
+from src.core.models import db, User
+from flask_bcrypt import Bcrypt
 
 client = app.test_client()
+bcrypt = Bcrypt(app)
+
+# Create a test user
+with app.app_context():
+    test_user = User.query.filter_by(email="test@example.com").first()
+    if not test_user:
+        hashed_password = bcrypt.generate_password_hash("test1234").decode("utf-8")
+        test_user = User(name="Test User", email="test@example.com", password_hash=hashed_password, role="teacher")
+        db.session.add(test_user)
+        db.session.commit()
 
 
 def test_api_class():
@@ -198,18 +214,29 @@ def test_api_state():
 
 
 def test_api_start():
-    q = {"id": 1, "text": "Test?", "options": {"A": "o1", "B": "o2", "C": "o3", "D": "o4"}, "correct": "A"}
-    r = client.post("/api/start", json={"question": q})
-    assert r.status_code == 200
-    d = json.loads(r.data)
-    assert d.get("ok") == True
-    with state_lock:
-        assert state["scanning"] == True
-        assert state["question"]["id"] == 1
-    return "scanning=True, question set"
+    with app.app_context():
+        test_user = User.query.filter_by(email="test@example.com").first()
+        # Login with Flask-Login
+        with client.session_transaction() as sess:
+            sess["_user_id"] = str(test_user.id)
+    
+        q = {"id": 1, "text": "Test?", "options": {"A": "o1", "B": "o2", "C": "o3", "D": "o4"}, "correct": "A"}
+        r = client.post("/api/start", json={"question": q})
+        assert r.status_code == 200
+        d = json.loads(r.data)
+        assert d.get("ok") == True
+        with state_lock:
+            assert state["scanning"] == True
+            assert state["question"]["id"] == 1
+        return "scanning=True, question set"
 
 
 def test_api_stop():
+    with app.app_context():
+        test_user = User.query.filter_by(email="test@example.com").first()
+        with client.session_transaction() as sess:
+            sess["_user_id"] = str(test_user.id)
+    
     r = client.post("/api/stop")
     assert r.status_code == 200
     with state_lock:
@@ -218,6 +245,11 @@ def test_api_stop():
 
 
 def test_api_reveal():
+    with app.app_context():
+        test_user = User.query.filter_by(email="test@example.com").first()
+        with client.session_transaction() as sess:
+            sess["_user_id"] = str(test_user.id)
+    
     # Set some results first
     with state_lock:
         state["results"] = {"1": "A", "2": "B"}
@@ -230,6 +262,11 @@ def test_api_reveal():
 
 
 def test_api_reset():
+    with app.app_context():
+        test_user = User.query.filter_by(email="test@example.com").first()
+        with client.session_transaction() as sess:
+            sess["_user_id"] = str(test_user.id)
+    
     r = client.post("/api/reset")
     assert r.status_code == 200
     with state_lock:
@@ -241,6 +278,11 @@ def test_api_reset():
 
 
 def test_api_reload_data():
+    with app.app_context():
+        test_user = User.query.filter_by(email="test@example.com").first()
+        with client.session_transaction() as sess:
+            sess["_user_id"] = str(test_user.id)
+    
     r = client.post("/api/reload_data")
     assert r.status_code == 200
     d = json.loads(r.data)
@@ -249,6 +291,11 @@ def test_api_reload_data():
 
 
 def test_route_teacher():
+    with app.app_context():
+        test_user = User.query.filter_by(email="test@example.com").first()
+        with client.session_transaction() as sess:
+            sess["_user_id"] = str(test_user.id)
+    
     r = client.get("/")
     assert r.status_code == 200
     assert b"Plickers" in r.data
@@ -289,23 +336,25 @@ correct_count = 0
 wrong_count = 0
 miss_count = 0
 
-for fname in sample_files:
-    img = cv2.imread(os.path.join(SAMPLES_DIR, fname))
-    if img is None:
-        print(f"  {FAIL} Cannot read: {fname}")
-        miss_count += 1
-        continue
-    expected = fname.split(".")[0]  # e.g. "003-A"
-    found = detector.process_image(img)
-    found_ids = [str(c[0]) for c in found]
-    if expected in found_ids:
-        correct_count += 1
-    elif found_ids:
-        wrong_count += 1
-        print(f"  WRONG  {fname:14} expected={expected} got={found_ids}")
-    else:
-        miss_count += 1
-        print(f"  MISS   {fname:14} expected={expected}")
+with app.app_context():
+    detector._load_cards()
+    for fname in sample_files:
+        img = cv2.imread(os.path.join(SAMPLES_DIR, fname))
+        if img is None:
+            print(f"  [FAIL] Cannot read: {fname}")
+            miss_count += 1
+            continue
+        expected = fname.split(".")[0]  # e.g., "003-A"
+        found = detector.process_image(img)
+        found_ids = [str(c[0]) for c in found]
+        if expected in found_ids:
+            correct_count += 1
+        elif found_ids:
+            wrong_count += 1
+            print(f"  WRONG  {fname:14} expected={expected} got={found_ids}")
+        else:
+            miss_count += 1
+            print(f"  MISS   {fname:14} expected={expected}")
 
 total = len(sample_files)
 accuracy = correct_count / total * 100 if total > 0 else 0
