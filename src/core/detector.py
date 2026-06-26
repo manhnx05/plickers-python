@@ -36,13 +36,24 @@ class PlickersDetector:
         """
         Initialize Plickers detector with card database from SQLite.
         """
-        try:
-            self.card_data, self.card_list = load_all_cards()
-            logger.info(f"Loaded {len(self.card_data)} card matrices from SQLite database")
-        except Exception as e:
-            logger.warning(f"Could not load card data from database: {e}")
-            self.card_data = []
-            self.card_list = []
+        self.card_data = []
+        self.card_list = []
+        self._cards_loaded = False
+
+    def _load_cards(self) -> None:
+        """
+        Load cards from database (lazy loading).
+        """
+        if not self._cards_loaded:
+            try:
+                # Try to get the app context
+                from src.web.app_web import app
+                with app.app_context():
+                    self.card_data, self.card_list = load_all_cards()
+                logger.info(f"Loaded {len(self.card_data)} card matrices from SQLite database")
+                self._cards_loaded = True
+            except Exception as e:
+                logger.warning(f"Could not load card data from database: {e}")
 
     def get_card_matrix(self, result_img: np.ndarray) -> np.ndarray:
         """
@@ -88,6 +99,7 @@ class PlickersDetector:
         Returns:
             Card text ID if found, None otherwise
         """
+        self._load_cards()
         card_array = self.get_card_matrix(result_img)
         for num, i in enumerate(self.card_data):
             if np.array_equal(i, card_array):
