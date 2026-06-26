@@ -4,6 +4,10 @@ Centralized configuration management for easy maintenance.
 """
 
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # ─── Project Paths ────────────────────────────────────────────────────────────
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -39,8 +43,12 @@ HUD_MAX_ROWS = 10  # maximum cards displayed in HUD
 # ─── Web App Settings ─────────────────────────────────────────────────────────
 FLASK_HOST = "0.0.0.0"
 FLASK_PORT = 5000
-FLASK_DEBUG = False
-FLASK_SECRET_KEY = "plickers-secret"
+FLASK_DEBUG = os.getenv("FLASK_DEBUG", "False").lower() == "true"
+FLASK_SECRET_KEY = os.getenv("FLASK_SECRET_KEY", "plickers-secret")
+
+# Resend email configuration
+RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+RESEND_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", "noreply@localhost")
 
 SSE_INTERVAL = 0.4  # seconds - Server-Sent Events update interval
 FRAME_QUALITY = 75  # JPEG quality for video stream
@@ -51,6 +59,7 @@ QUESTIONS_JSON = os.path.join(DATA_DIR, "questions.json")
 CARD_DATA = os.path.join(DATABASE_DIR, "card.data")
 CARD_LIST = os.path.join(DATABASE_DIR, "card.list")
 SQLITE_DB = os.path.join(DATABASE_DIR, "plickers.db")  # New SQLite database path
+DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{SQLITE_DB}")
 SCANNER_CSV = os.path.join(OUTPUT_DIR, "ket_qua.csv")
 
 # ─── Logging Settings ─────────────────────────────────────────────────────────
