@@ -1,91 +1,62 @@
 """
-SQLite database helper for Plickers system.
-Handles database connection, schema creation, and data operations.
+Database helper for Plickers system using SQLAlchemy.
+Handles database initialization and operations.
 """
 
-import sqlite3
 import os
 import sys
-import json
 from typing import List, Tuple, Optional
 import numpy as np
+from datetime import datetime, timedelta, timezone
+import secrets
 
 # Add project root to path
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
-from src.config import SQLITE_DB, DATABASE_DIR
+
+from src.config import SQLITE_DB, DATABASE_DIR, DATABASE_URL
+from src.core.models import db, Card, User, Class, Student, Question, ScanSession, ScanResult, PasswordResetToken
 
 
-def init_db() -> None:
+def init_db(app) -> None:
     """
-    Initialize SQLite database and create tables if they don't exist.
+    Initialize SQLAlchemy database and create all tables.
     """
     os.makedirs(DATABASE_DIR, exist_ok=True)
+    # Ensure we use the correct SQLite path
+    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{SQLITE_DB}"
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     
-    conn = sqlite3.connect(SQLITE_DB)
-    cursor = conn.cursor()
+    # Only initialize if not already initialized
+    if 'sqlalchemy' not in app.extensions:
+        db.init_app(app)
     
-    # Create cards table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS cards (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            card_id TEXT NOT NULL UNIQUE,  -- e.g., "001-A"
-            card_number INTEGER NOT NULL,  -- e.g., 1
-            option TEXT NOT NULL,  -- e.g., "A"
-            matrix BLOB NOT NULL,  -- 5x5 matrix as binary
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    
-    # Create scan_sessions table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS scan_sessions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            question_id INTEGER,
-            question_text TEXT,
-            correct_answer TEXT,
-            started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            ended_at TIMESTAMP,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    
-    # Create scan_results table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS scan_results (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id INTEGER NOT NULL,
-            card_number INTEGER NOT NULL,
-            student_name TEXT,
-            answer TEXT NOT NULL,
-            is_correct BOOLEAN,
-            scanned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (session_id) REFERENCES scan_sessions (id)
-        )
-    """)
-    
-    conn.commit()
-    conn.close()
+    with app.app_context():
+        db.create_all()
 
 
 def save_card(card_id: str, card_number: int, option: str, matrix: np.ndarray) -> None:
     """
     Save a single card to the database.
     """
-    conn = sqlite3.connect(SQLITE_DB)
-    cursor = conn.cursor()
-    
-    # Convert numpy matrix to binary
     matrix_blob = matrix.tobytes()
     
-    cursor.execute("""
-        INSERT OR REPLACE INTO cards (card_id, card_number, option, matrix)
-        VALUES (?, ?, ?, ?)
-    """, (card_id, card_number, option, matrix_blob))
+    existing_card = Card.query.filter_by(card_id=card_id).first()
+    if existing_card:
+        existing_card.card_number = card_number
+        existing_card.option = option
+        existing_card.matrix = matrix_blob
+    else:
+        new_card = Card(
+            card_id=card_id,
+            card_number=card_number,
+            option=option,
+            matrix=matrix_blob
+        )
+        db.session.add(new_card)
     
-    conn.commit()
-    conn.close()
+    db.session.commit()
 
 
 def load_all_cards() -> Tuple[List[np.ndarray], List[str]]:
@@ -93,22 +64,15 @@ def load_all_cards() -> Tuple[List[np.ndarray], List[str]]:
     Load all cards from the database.
     Returns (card_data, card_list) where card_data is list of matrices and card_list is list of card IDs.
     """
-    conn = sqlite3.connect(SQLITE_DB)
-    cursor = conn.cursor()
-    
-    cursor.execute("SELECT card_id, matrix FROM cards ORDER BY id")
-    rows = cursor.fetchall()
-    
+    cards = Card.query.order_by(Card.id).all()
     card_data = []
     card_list = []
     
-    for card_id, matrix_blob in rows:
-        # Convert binary back to numpy matrix (5x5, float)
-        matrix = np.frombuffer(matrix_blob, dtype=np.float64).reshape(5, 5)
+    for card in cards:
+        matrix = np.frombuffer(card.matrix, dtype=np.float64).reshape(5, 5)
         card_data.append(matrix)
-        card_list.append(card_id)
+        card_list.append(card.card_id)
     
-    conn.close()
     return card_data, card_list
 
 
@@ -116,68 +80,50 @@ def clear_cards() -> None:
     """
     Clear all cards from the database.
     """
-    conn = sqlite3.connect(SQLITE_DB)
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM cards")
-    conn.commit()
-    conn.close()
+    Card.query.delete()
+    db.session.commit()
 
 
-def create_scan_session(question_id: Optional[int] = None, 
-                        question_text: Optional[str] = None, 
-                        correct_answer: Optional[str] = None) -> int:
+def create_password_reset_token(user_id: int) -> str:
     """
-    Create a new scan session and return its ID.
+    Create a password reset token for a user.
     """
-    conn = sqlite3.connect(SQLITE_DB)
-    cursor = conn.cursor()
+    token = secrets.token_urlsafe(32)
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
     
-    cursor.execute("""
-        INSERT INTO scan_sessions (question_id, question_text, correct_answer)
-        VALUES (?, ?, ?)
-    """, (question_id, question_text, correct_answer))
+    reset_token = PasswordResetToken(
+        user_id=user_id,
+        token=token,
+        expires_at=expires_at
+    )
+    db.session.add(reset_token)
+    db.session.commit()
     
-    session_id = cursor.lastrowid
-    conn.commit()
-    conn.close()
-    return session_id
+    return token
 
 
-def end_scan_session(session_id: int) -> None:
+def get_user_by_token(token: str) -> Optional[User]:
     """
-    Mark a scan session as ended.
+    Get a user by a valid password reset token.
     """
-    conn = sqlite3.connect(SQLITE_DB)
-    cursor = conn.cursor()
-    
-    cursor.execute("""
-        UPDATE scan_sessions
-        SET ended_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-    """, (session_id,))
-    
-    conn.commit()
-    conn.close()
+    reset_token = PasswordResetToken.query.filter_by(token=token, used=False).first()
+    if reset_token and reset_token.expires_at > datetime.now(timezone.utc):
+        return User.query.get(reset_token.user_id)
+    return None
 
 
-def save_scan_result(session_id: int, card_number: int, student_name: Optional[str], 
-                     answer: str, is_correct: Optional[bool] = None) -> None:
+def mark_token_as_used(token: str) -> None:
     """
-    Save a single scan result to the database.
+    Mark a password reset token as used.
     """
-    conn = sqlite3.connect(SQLITE_DB)
-    cursor = conn.cursor()
-    
-    cursor.execute("""
-        INSERT INTO scan_results (session_id, card_number, student_name, answer, is_correct)
-        VALUES (?, ?, ?, ?, ?)
-    """, (session_id, card_number, student_name, answer, is_correct))
-    
-    conn.commit()
-    conn.close()
+    reset_token = PasswordResetToken.query.filter_by(token=token).first()
+    if reset_token:
+        reset_token.used = True
+        db.session.commit()
 
 
 if __name__ == "__main__":
-    print("Initializing SQLite database...")
-    init_db()
-    print(f"Database initialized at: {SQLITE_DB}")
+    from src.web.app_web import app
+    print("Initializing SQLAlchemy database...")
+    init_db(app)
+    print("Database initialized successfully!")
