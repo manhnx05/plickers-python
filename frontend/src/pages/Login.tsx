@@ -1,6 +1,7 @@
-import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { api, ApiError } from '../api/client';
 
+import { useState } from 'react';
 export default function Login({ setUser }: { setUser: (user: any) => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -12,21 +13,12 @@ export default function Login({ setUser }: { setUser: (user: any) => void }) {
     setError('');
     
     try {
-      const res = await fetch('/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-      const data = await res.json();
-      
-      if (data.ok) {
-        setUser(data.user);
-        navigate('/');
-      } else {
-        setError(data.error || 'Invalid credentials');
-      }
+      const data = await api.post<{ ok: boolean; user: any }>('/login', { email, password });
+      setUser(data.user);
+      navigate('/');
     } catch (err) {
-      setError('Network error');
+      if (err instanceof ApiError) setError(err.message);
+      else setError('Network error');
     }
   };
 
