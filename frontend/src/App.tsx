@@ -4,18 +4,16 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import TeacherDashboard from './pages/TeacherDashboard';
 import StudentDisplay from './pages/StudentDisplay';
+import { api } from './api/client';
 
 export default function App() {
   const [user, setUser] = useState<{ id: number; name: string; role: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/me')
-      .then(res => res.json())
+    api.get<{ ok: boolean; user: any }>('/api/me')
       .then(data => {
-        if (data.ok && data.user) {
-          setUser(data.user);
-        }
+        if (data.user) setUser(data.user);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
