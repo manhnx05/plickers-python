@@ -1,21 +1,17 @@
-"""
-Entry point -- Run Plickers Web App from project root.
-Usage: python run_web.py
-"""
-
 import sys
 import os
 
-# Ensure project root in sys.path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from src.web.app_web import app
+from src.web.app import create_app
+from src.config import FLASK_HOST, FLASK_PORT, FLASK_DEBUG
+
+app = create_app()
 
 if __name__ == "__main__":
     print("=" * 58)
-    print("  Plickers Classroom Web App")
-    print("  Teacher Dashboard : http://localhost:5000/")
-    print("  Student Display   : http://localhost:5000/display")
-    print("  Camera starts lazily when first client connects.")
+    print("  Plickers Classroom API Server")
+    print(f"  API Endpoint      : http://localhost:{FLASK_PORT}/api")
+    print(f"  Video Stream      : http://localhost:{FLASK_PORT}/video_feed")
     print("=" * 58)
-    app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
+    app.run(host=FLASK_HOST, port=FLASK_PORT, debug=FLASK_DEBUG, threaded=True)
