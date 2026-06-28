@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { LogOut } from 'lucide-react';
+import { api } from '../api/client';
 
 export default function TeacherDashboard({ user, setUser }: { user: any, setUser: (u: any) => void }) {
   const [classData, setClassData] = useState<any>(null);
@@ -8,8 +9,8 @@ export default function TeacherDashboard({ user, setUser }: { user: any, setUser
   const [state, setState] = useState({ scanning: false, results: {} as Record<string, string>, revealed: false, question: null as any });
 
   useEffect(() => {
-    fetch('/api/class').then(r => r.json()).then(setClassData);
-    fetch('/api/questions').then(r => r.json()).then(setQuestions);
+    api.get<any>('/api/class').then(setClassData).catch(console.error);
+    api.get<any[]>('/api/questions').then(setQuestions).catch(console.error);
 
     const sse = new EventSource('/api/events');
     sse.onmessage = (e) => {
@@ -19,24 +20,26 @@ export default function TeacherDashboard({ user, setUser }: { user: any, setUser
   }, []);
 
   const handleLogout = async () => {
-    await fetch('/logout', { method: 'POST' });
+    try {
+      await api.post('/logout');
+    } catch {}
     setUser(null);
   };
 
   const handleStart = async () => {
     if (!selectedQuestion) return alert('Please select a question!');
-    await fetch('/api/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question: selectedQuestion })
-    });
+    try {
+      await api.post('/api/start', { question: selectedQuestion });
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleStop = async () => await fetch('/api/stop', { method: 'POST' });
-  const handleReveal = async () => await fetch('/api/reveal', { method: 'POST' });
+  const handleStop = async () => await api.post('/api/stop').catch(console.error);
+  const handleReveal = async () => await api.post('/api/reveal').catch(console.error);
   const handleReset = async () => {
     if (confirm('Reset session? All results will be cleared.')) {
-      await fetch('/api/reset', { method: 'POST' });
+      await api.post('/api/reset').catch(console.error);
       setSelectedQuestion(null);
     }
   };
