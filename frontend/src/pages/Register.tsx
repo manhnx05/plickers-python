@@ -1,5 +1,6 @@
-import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { api, ApiError } from '../api/client';
+import { useState } from 'react';
 
 export default function Register() {
   const [name, setName] = useState('');
@@ -13,20 +14,11 @@ export default function Register() {
     setError('');
     
     try {
-      const res = await fetch('/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password })
-      });
-      const data = await res.json();
-      
-      if (data.ok) {
-        navigate('/login');
-      } else {
-        setError(data.error || 'Registration failed');
-      }
+      await api.post<{ ok: boolean }>('/register', { name, email, password });
+      navigate('/login');
     } catch (err) {
-      setError('Network error');
+      if (err instanceof ApiError) setError(err.message);
+      else setError('Network error');
     }
   };
 
