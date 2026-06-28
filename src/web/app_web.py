@@ -14,12 +14,9 @@ from functools import wraps
 
 import cv2
 import numpy as np
-from flask import Flask, render_template, Response, jsonify, request, stream_with_context, redirect, url_for, flash
+from flask import Flask, Response, jsonify, request, stream_with_context
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_bcrypt import Bcrypt
-from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField
-from wtforms.validators import DataRequired, Email, EqualTo
 
 # ─── Path setup ───────────────────────────────────────────────────────────────
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -231,135 +228,70 @@ def ensure_camera_started() -> None:
                 _camera_started = True
 
 
-# ─── Forms ────────────────────────────────────────────────────────────────────
-class LoginForm(FlaskForm):
-    email = StringField('Email', validators=[DataRequired(), Email()])
-    password = PasswordField('Password', validators=[DataRequired()])
-    submit = SubmitField('Log In')
-
-
-class RegisterForm(FlaskForm):
-    name = StringField('Name', validators=[DataRequired()])
-    email = StringField('Email', validators=[DataRequired(), Email()])
-    password = PasswordField('Password', validators=[DataRequired()])
-    confirm_password = PasswordField('Confirm Password', validators=[DataRequired(), EqualTo('password')])
-    submit = SubmitField('Register')
-
-
-class ForgotPasswordForm(FlaskForm):
-    email = StringField('Email', validators=[DataRequired(), Email()])
-    submit = SubmitField('Send Reset Link')
-
-
-class ResetPasswordForm(FlaskForm):
-    password = PasswordField('New Password', validators=[DataRequired()])
-    confirm_password = PasswordField('Confirm New Password', validators=[DataRequired(), EqualTo('password')])
-    submit = SubmitField('Reset Password')
-
-
 # ─── Auth Routes ───────────────────────────────────────────────────────────────
-@app.route("/login", methods=["GET", "POST"])
+@app.route("/login", methods=["POST"])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for("index"))
+        return jsonify({"ok": True, "message": "Already logged in", "user": {"id": current_user.id, "name": current_user.name, "role": current_user.role}})
     
-    form = LoginForm()
-    if form.validate_on_submit():
-        user = User.query.filter_by(email=form.email.data).first()
-        if user and bcrypt.check_password_hash(user.password_hash, form.password.data):
-            login_user(user)
-            return redirect(url_for("index"))
-        flash('Invalid email or password', 'danger')
-    return render_template("login.html", form=form)
+    data = request.json or {}
+    email = data.get("email")
+    password = data.get("password")
+    
+    if not email or not password:
+        return jsonify({"ok": False, "error": "Missing email or password"}), 400
+        
+    user = User.query.filter_by(email=email).first()
+    if user and bcrypt.check_password_hash(user.password_hash, password):
+        login_user(user)
+        return jsonify({"ok": True, "user": {"id": user.id, "name": user.name, "role": user.role}})
+    return jsonify({"ok": False, "error": "Invalid email or password"}), 401
 
 
-@app.route("/register", methods=["GET", "POST"])
+@app.route("/register", methods=["POST"])
 def register():
     if current_user.is_authenticated:
-        return redirect(url_for("index"))
+        return jsonify({"ok": False, "error": "Already logged in"}), 400
     
-    form = RegisterForm()
-    if form.validate_on_submit():
-        existing_user = User.query.filter_by(email=form.email.data).first()
-        if existing_user:
-            flash('Email already registered', 'danger')
-        else:
-            hashed_password = bcrypt.generate_password_hash(form.password.data).decode('utf-8')
-            new_user = User(
-                name=form.name.data,
-                email=form.email.data,
-                password_hash=hashed_password,
-                role='teacher'
-            )
-            db.session.add(new_user)
-            db.session.commit()
-            flash('Registration successful! Please log in.', 'success')
-            return redirect(url_for("login"))
-    return render_template("register.html", form=form)
+    data = request.json or {}
+    name = data.get("name")
+    email = data.get("email")
+    password = data.get("password")
+    
+    if not name or not email or not password:
+        return jsonify({"ok": False, "error": "Missing required fields"}), 400
+        
+    existing_user = User.query.filter_by(email=email).first()
+    if existing_user:
+        return jsonify({"ok": False, "error": "Email already registered"}), 400
+        
+    hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+    new_user = User(
+        name=name,
+        email=email,
+        password_hash=hashed_password,
+        role='teacher'
+    )
+    db.session.add(new_user)
+    db.session.commit()
+    return jsonify({"ok": True, "message": "Registration successful"})
 
 
-@app.route("/logout")
+@app.route("/logout", methods=["POST"])
 @login_required
 def logout():
     logout_user()
-    return redirect(url_for("login"))
+    return jsonify({"ok": True})
 
 
-@app.route("/forgot-password", methods=["GET", "POST"])
-def forgot_password():
-    form = ForgotPasswordForm()
-    if form.validate_on_submit():
-        user = User.query.filter_by(email=form.email.data).first()
-        if user:
-            token = create_password_reset_token(user.id)
-            reset_url = url_for("reset_password", token=token, _external=True)
-            
-            if RESEND_API_KEY:
-                import resend
-                resend.api_key = RESEND_API_KEY
-                resend.Emails.send({
-                    "from": RESEND_FROM_EMAIL,
-                    "to": user.email,
-                    "subject": "Reset your password",
-                    "html": f"Click <a href='{reset_url}'>here</a> to reset your password."
-                })
-                flash('Password reset link sent to your email!', 'success')
-            else:
-                flash(f"Password reset link (for testing): {reset_url}", 'info')
-            return redirect(url_for("login"))
-        else:
-            flash('Email not found', 'danger')
-    return render_template("forgot_password.html", form=form)
+@app.route("/api/me", methods=["GET"])
+def api_me():
+    if current_user.is_authenticated:
+        return jsonify({"ok": True, "user": {"id": current_user.id, "name": current_user.name, "email": current_user.email, "role": current_user.role}})
+    return jsonify({"ok": False, "error": "Not authenticated"}), 401
 
 
-@app.route("/reset-password/<token>", methods=["GET", "POST"])
-def reset_password(token):
-    user = get_user_by_token(token)
-    if not user:
-        flash('Invalid or expired token', 'danger')
-        return redirect(url_for("forgot_password"))
-    
-    form = ResetPasswordForm()
-    if form.validate_on_submit():
-        hashed_password = bcrypt.generate_password_hash(form.password.data).decode('utf-8')
-        user.password_hash = hashed_password
-        mark_token_as_used(token)
-        db.session.commit()
-        flash('Password reset successfully!', 'success')
-        return redirect(url_for("login"))
-    return render_template("reset_password.html", form=form, token=token)
 
-
-# ─── Main Routes ───────────────────────────────────────────────────────────────
-@app.route("/")
-@login_required
-def index():
-    return render_template("teacher.html")
-
-
-@app.route("/display")
-def display():
-    return render_template("display.html")
 
 
 @app.route("/video_feed")
@@ -517,9 +449,8 @@ def _save_results() -> None:
 # ─── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     print("=" * 58)
-    print("  Plickers Classroom Web App")
-    print(f"  Teacher Dashboard : http://localhost:{FLASK_PORT}/")
-    print(f"  Student Display   : http://localhost:{FLASK_PORT}/display")
-    print(f"  Login             : http://localhost:{FLASK_PORT}/login")
+    print("  Plickers Classroom API Server")
+    print(f"  API Endpoint      : http://localhost:{FLASK_PORT}/api")
+    print(f"  Video Stream      : http://localhost:{FLASK_PORT}/video_feed")
     print("=" * 58)
     app.run(host=FLASK_HOST, port=FLASK_PORT, debug=FLASK_DEBUG, threaded=True)
