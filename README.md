@@ -1,186 +1,171 @@
-# Plickers Python
+# Plickers Python 🎯
 
-Hệ thống nhận diện thẻ Plickers nguồn mở sử dụng OpenCV cho Python.
-Hỗ trợ hai chế độ: Web App (teacher dashboard + student display) và Standalone Scanner (camera trực tiếp).
+![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)
+![Flask](https://img.shields.io/badge/Flask-App%20Factory-black.svg)
+![React](https://img.shields.io/badge/React-Vite%20SPA-61DAFB.svg)
+![OpenCV](https://img.shields.io/badge/OpenCV-Computer%20Vision-green.svg)
 
----
+An open-source, modernized alternative to Plickers built with **Python (Computer Vision)**, **Flask (Backend API)**, and **React (Frontend SPA)**. 
 
-## Giới thiệu
-
-Ứng dụng dùng Computer Vision (OpenCV) kết hợp thuật toán Contours + Otsu Thresholding để nhận dạng thẻ Plickers qua Webcam hoặc ảnh tĩnh.
-Hệ thống xác định Mã Học sinh và Đáp án A/B/C/D bằng cách cắt lưới 5×5 trên thẻ và đối chiếu với database.
-
-### Tỷ lệ nhận diện (Accuracy)
-Khoảng 86% trên bộ ảnh sample 34 thẻ qua bộ lọc Canny Edge đa tham số.
+This system allows teachers to rapidly collect formative assessment data without requiring students to have devices. Teachers simply use their webcam to scan physical "paper clickers" (Plickers cards) that students hold up to indicate their answers (A, B, C, or D).
 
 ---
 
-## Cấu trúc thư mục
+## ✨ Features
+
+- **Real-Time Computer Vision Scanning**: Utilizes OpenCV algorithms (Contours, Otsu Thresholding, Canny Edge Detection) to instantly identify student cards and parse their chosen answers.
+- **Modern Single Page Application (SPA)**: A beautiful, responsive user interface built with React, TypeScript, and Vite. Features a premium Dark Mode aesthetic.
+- **Live Event Streaming**: Real-time synchronization between the camera scanning engine and the frontend UI using Server-Sent Events (SSE).
+- **Dual Display Modes**: 
+  - *Teacher Dashboard*: Controls the scanning session, previews the live camera feed, and manages questions.
+  - *Student Display*: A projector-friendly view featuring live-updating bar charts (via Chart.js) that reveal class statistics without exposing individual student answers during the scan.
+- **Decoupled Architecture**: Strictly separated Frontend and Backend architectures allowing independent scaling, testing, and modification.
+
+---
+
+## 🏗 System Architecture
+
+This project strictly adheres to professional software architecture patterns, focusing on maintainability, modularity, and separation of concerns.
+
+### Backend (Flask API)
+The backend is powered by Python and Flask, implementing the **App Factory Pattern** and **Blueprints**.
+- **Core / CV (`src/core`)**: Contains the `PlickersDetector`, utilizing OpenCV for geometric transformations and matrix mapping to decode the 5x5 card grids.
+- **Services (`src/web/services`)**: Business logic is isolated here.
+  - `camera_service.py`: Manages the background OpenCV camera thread and yields JPEG frames.
+  - `state.py`: Handles concurrency and locks for the global scanning state.
+  - `data_service.py`: Manages I/O operations for student rosters and question banks.
+- **Routes (`src/web/routes`)**: API endpoints divided logically into `auth_routes`, `scanner_routes`, and `data_routes`.
+- **Security**: Utilizes `Flask-Login` for session management and `Flask-Bcrypt` for password hashing.
+
+### Frontend (React SPA)
+The frontend is a standalone React application built via Vite.
+- **API Client (`src/api/client.ts`)**: A centralized wrapper around `fetch` that standardizes request headers, handles JSON parsing, and manages error throwing across the application.
+- **State Management**: Uses React hooks alongside `EventSource` to subscribe to the Flask backend's SSE stream, ensuring the UI remains perfectly synced with the camera's detection state.
+- **Styling**: Relies on scalable, clean Vanilla CSS variables with zero bloated frameworks, ensuring maximum flexibility.
+
+---
+
+## 📂 Directory Structure
 
 ```text
 plickers-python/
 │
-├── run_web.py                 # Khởi chạy Web App (Flask)
-├── run_scanner.py             # Khởi chạy Standalone Camera Scanner
-├── requirements.txt
-├── README.md
+├── run_web.py                 # Entry point for the Flask Backend API Server
+├── run_scanner.py             # Entry point for the Standalone Camera Scanner (CLI mode)
+├── requirements.txt           # Python backend dependencies
+├── pyproject.toml             # Project metadata and linting configuration
 │
-├── data/                      # Tầng dữ liệu & tài nguyên tĩnh
-│   ├── database/              # Database (card.data, card.list, plickers.db)
-│   ├── samples/               # Ảnh mẫu dùng để test (###-X.jpg)
-│   ├── class.json             # Danh sách học sinh (card_no → tên)
-│   ├── questions.json         # Ngân hàng câu hỏi ABCD
-│   └── output/                # Kết quả xuất ra (CSV sessions)
+├── frontend/                  # React Single Page Application
+│   ├── src/
+│   │   ├── api/               # Centralized API client (client.ts)
+│   │   ├── pages/             # Route components (Dashboard, Student Display, Auth)
+│   │   ├── App.tsx            # Main router and authentication state provider
+│   │   └── index.css          # Global design system and CSS variables
+│   └── vite.config.ts         # Vite build config with proxy to Flask (:5000)
 │
-└── src/                       # Tầng logic chính
-    ├── app.py                 # Standalone Camera Scanner (entry: main())
-    ├── core/
-    │   ├── detector.py        # PlickersDetector — trái tim OpenCV
-    │   ├── db.py              # SQLite database module
-    │   └── utils.py           # Math helper (mode)
-    ├── scripts/
-    │   ├── evaluate.py        # Unit test độ chính xác trên tập mẫu
-    │   ├── generate_db.py     # Tạo database từ ảnh samples
-    │   ├── generate_pdf.py    # Xuất PDF thẻ in (ảnh mẫu)
-    │   └── generate_plickers_pdf.py  # Xuất PDF thẻ in (từ database matrix)
-    └── web/
-        ├── app_web.py         # Flask server — Teacher + Display
-        └── templates/
-            ├── teacher.html   # Teacher dashboard (camera + điều khiển)
-            └── display.html   # Student display (chiếu lên màn hình lớn)
+├── data/                      # Local Data Storage
+│   ├── class.json             # Roster defining card numbers to student names
+│   ├── questions.json         # Bank of multiple-choice questions
+│   ├── database/              # Matrix configuration defining the signatures of cards
+│   ├── samples/               # Sample images used for offline testing
+│   └── output/                # Auto-generated CSV files of scan sessions
+│
+└── src/                       # Python Source Code
+    ├── core/                  # OpenCV Detector, Models, and Database setup
+    ├── scripts/               # Utilities (PDF Generation, DB initialization)
+    └── web/                   # Flask Application Directory
+        ├── app.py             # App Factory (create_app)
+        ├── extensions.py      # Flask plugins initialization
+        ├── routes/            # Flask Blueprints (API Controllers)
+        └── services/          # Business logic and State management
 ```
 
 ---
 
-## Cài đặt
+## 🚀 Getting Started
 
-### Cách 1: Sử dụng script tự động (đề xuất cho Windows)
-1. Mở PowerShell (hoặc Command Prompt) tại thư mục gốc của project
-2. Chạy script tương ứng:
-   - PowerShell:
-     ```powershell
-     .\setup.ps1
-     ```
-   - Command Prompt:
-     ```cmd
-     setup.bat
-     ```
+### Prerequisites
+- **Python 3.8+**
+- **Node.js 18+**
 
-### Cách 2: Thực hiện thủ công
-1. Tạo môi trường ảo:
-   ```bash
-   python -m venv .venv
-   ```
-2. Kích hoạt môi trường ảo:
-   - Windows PowerShell:
-     ```powershell
-     .venv\Scripts\Activate.ps1
-     ```
-   - Windows Command Prompt:
-     ```cmd
-     .venv\Scripts\activate.bat
-     ```
-   - Linux/macOS:
-     ```bash
-     source .venv/bin/activate
-     ```
-3. Cài đặt dependencies:
-   ```bash
-   # Cài đặt dependencies chính
-   pip install -r requirements.txt
+### 1. Backend Setup (Python)
 
-   # (Tùy chọn) Cài đặt dependencies phát triển (testing, linting...)
-   pip install -r requirements-dev.txt
-   ```
+It is highly recommended to use a virtual environment.
 
-### Lưu ý
-- Sau khi cài đặt xong, hãy đảm bảo môi trường ảo được kích hoạt trước khi chạy project
-- Để tắt môi trường ảo, chạy lệnh: `deactivate`
+```bash
+# Create the virtual environment
+python -m venv .venv
+
+# Activate it (Windows)
+.venv\Scripts\activate
+
+# Activate it (macOS/Linux)
+source .venv/bin/activate
+
+# Install all backend dependencies
+pip install -r requirements.txt
+```
+
+### 2. Frontend Setup (React)
+
+Open a new terminal window:
+
+```bash
+cd frontend
+npm install
+```
 
 ---
 
-## Cách sử dụng
+## 💻 Usage
 
-### 1. Web App (Khuyến nghị)
+To run the full application, you must start both the backend API and the frontend development server simultaneously.
 
-Chạy Flask server từ thư mục gốc:
-
+**Terminal 1: Start the API Server**
 ```bash
+# From the project root, ensure .venv is activated
 python run_web.py
 ```
+*The Flask server will boot up on `http://localhost:5000`.*
 
-Mở trình duyệt:
-- Teacher Dashboard → http://localhost:5000/
-- Student Display → http://localhost:5000/display
-
-Luồng hoạt động:
-1. Chọn câu hỏi ở Teacher Dashboard
-2. Nhấn BẮT ĐẦU QUÉT — camera tự bật
-3. Học sinh giơ thẻ, hệ thống quét và hiển thị realtime
-4. Nhấn HIỆN ĐÁP ÁN — chart kết quả hiện trên màn hình lớp
-5. Kết quả tự xuất ra data/output/session_YYYYMMDD_HHmmss.csv
-
-Lưu ý: Camera khởi động lazy — chỉ bật khi client kết nối lần đầu.
-
-### 2. Standalone Camera Scanner
-
+**Terminal 2: Start the Frontend UI**
 ```bash
-python run_scanner.py
+# From the frontend/ directory
+npm run dev
 ```
+*The React application will boot up on `http://localhost:5173`.*
 
-Quét trực tiếp qua Webcam. Kết quả lưu vào data/output/ket_qua.csv.
-Nhấn q để thoát.
-
-### 3. Kiểm tra độ chính xác
-
-```bash
-python tests/test_plickers.py
-```
-
-Chạy detector trên toàn bộ ảnh trong data/samples/ và in kết quả.
-
-### 4. Tạo lại Database
-
-```bash
-python src/scripts/generate_db.py
-```
-
-Cần thiết khi thêm ảnh mẫu mới vào data/samples/.
-
-### 5. In thẻ PDF
-
-```bash
-# PDF từ database matrix (đẹp hơn, khuyến nghị)
-python src/scripts/generate_plickers_pdf.py
-
-# PDF từ ảnh mẫu (xem trước ảnh thật)
-python src/scripts/generate_pdf.py
-```
+### Operating the System
+1. Open your browser and navigate to `http://localhost:5173`.
+2. Register a new teacher account and log in.
+3. You will land on the **Teacher Dashboard**. Select a question from the dropdown.
+4. Click **▶ START** to activate your webcam.
+5. Have students hold up their printed Plickers cards. The system will detect them instantly.
+6. Click **👁 REVEAL** to stop scanning, lock in the answers, and grade the results.
+7. Open a secondary tab/window to `http://localhost:5173/display` and drag it to your projector to show live charts to the students.
+8. Results are automatically saved to `data/output/session_YYYYMMDD_HHmmss.csv`.
 
 ---
 
-## API Endpoints (Web App)
+## 🛠 Advanced Scripts
 
-| Method | Endpoint | Mô tả |
-|--------|----------|-------|
-| GET | / | Teacher dashboard |
-| GET | /display | Student display |
-| GET | /video_feed | MJPEG camera stream |
-| GET | /api/state | Trạng thái hiện tại (JSON) |
-| GET | /api/events | SSE realtime stream |
-| GET | /api/class | Danh sách học sinh |
-| GET | /api/questions | Ngân hàng câu hỏi |
-| POST | /api/start | Bắt đầu phiên quét |
-| POST | /api/stop | Tạm dừng quét |
-| POST | /api/reveal | Hiện đáp án + lưu CSV |
-| POST | /api/reset | Reset phiên mới |
-| POST | /api/reload_data | Reload JSON không restart server |
+The repository includes several helpful CLI scripts located in `src/scripts/`:
+
+- **Generate PDF Cards**: Create printable PDF sheets of the Plickers cards.
+  ```bash
+  python src/scripts/generate_plickers_pdf.py
+  ```
+- **Accuracy Testing**: Run the detector against static images in `data/samples/` to evaluate algorithmic accuracy.
+  ```bash
+  python tests/test_plickers.py
+  ```
+- **Standalone Scanner**: Run the scanner entirely through an OpenCV desktop window without the web application.
+  ```bash
+  python run_scanner.py
+  ```
 
 ---
 
-## Nâng cấp & Mở rộng
+## 📄 License
 
-- PlickersDetector trong core/detector.py có thể import và nhúng vào bất kỳ framework nào (FastAPI, Django…)
-- Thêm câu hỏi: chỉnh sửa data/questions.json
-- Thêm học sinh: chỉnh sửa data/class.json, gọi POST /api/reload_data
-- Thêm thẻ mới: thêm ảnh vào data/samples/, chạy lại generate_db.py
+This project is open-source and available under the MIT License. Feel free to fork, modify, and use it in your classrooms!
