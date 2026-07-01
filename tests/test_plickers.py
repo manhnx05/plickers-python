@@ -39,7 +39,7 @@ check("import scipy", lambda: __import__("scipy").__version__)
 
 check("src.core.detector", lambda: __import__("src.core.detector", fromlist=["PlickersDetector"]))
 check("src.core.utils", lambda: __import__("src.core.utils", fromlist=["Math"]))
-check("src.web.app_web", lambda: __import__("src.web.app_web", fromlist=["app"]))
+check("src.web.app", lambda: __import__("src.web.app", fromlist=["create_app"]))
 check("src.app (scanner)", lambda: __import__("src.app", fromlist=["main"]))
 check("src.scripts.evaluate", lambda: __import__("src.scripts.evaluate", fromlist=["main"]))
 check("src.scripts.generate_db", lambda: __import__("src.scripts.generate_db", fromlist=["cv_card_read"]))
@@ -62,10 +62,11 @@ def init_detector():
 
 
 # Initialize detector inside app context
-from src.web.app_web import app
+from src.web.app import create_app
+app = create_app()
 with app.app_context():
     check("PlickersDetector init", init_detector)
-    detector._load_cards()
+    detector._load_cards(app)
 
 
 def check_db_integrity():
@@ -84,7 +85,7 @@ print("\n" + "=" * 60)
 print("  TEST 3: DATA FILES")
 print("=" * 60)
 
-from src.web.app_web import load_class, load_questions, get_student_name, invalidate_data_cache
+from src.web.services.data_service import load_class, load_questions, get_student_name, invalidate_data_cache
 
 invalidate_data_cache()
 
@@ -129,7 +130,7 @@ print("\n" + "=" * 60)
 print("  TEST 4: STATE MANAGEMENT (Thread-safe)")
 print("=" * 60)
 
-from src.web.app_web import state, state_lock
+from src.web.services.state import app_state as state, state_lock
 
 
 def test_state_initial():
@@ -172,11 +173,10 @@ print("\n" + "=" * 60)
 print("  TEST 5: FLASK API ENDPOINTS")
 print("=" * 60)
 
-from src.web.app_web import app
+# Already created app in test 2, just use it!
+client = app.test_client()
 from src.core.models import db, User
 from flask_bcrypt import Bcrypt
-
-client = app.test_client()
 bcrypt = Bcrypt(app)
 
 # Create a test user
@@ -290,25 +290,6 @@ def test_api_reload_data():
     return "cache invalidated + reloaded"
 
 
-def test_route_teacher():
-    with app.app_context():
-        test_user = User.query.filter_by(email="test@example.com").first()
-        with client.session_transaction() as sess:
-            sess["_user_id"] = str(test_user.id)
-    
-    r = client.get("/")
-    assert r.status_code == 200
-    assert b"Plickers" in r.data
-    return "200 OK, teacher.html rendered"
-
-
-def test_route_display():
-    r = client.get("/display")
-    assert r.status_code == 200
-    assert b"Plickers" in r.data
-    return "200 OK, display.html rendered"
-
-
 check("GET /api/class", test_api_class)
 check("GET /api/questions", test_api_questions)
 check("GET /api/state", test_api_state)
@@ -317,8 +298,6 @@ check("POST /api/stop", test_api_stop)
 check("POST /api/reveal", test_api_reveal)
 check("POST /api/reset", test_api_reset)
 check("POST /api/reload_data", test_api_reload_data)
-check("GET / (teacher.html)", test_route_teacher)
-check("GET /display", test_route_display)
 
 
 # ─── TEST 6: DETECTOR ON SAMPLE IMAGES ────────────────────────────────────────
@@ -337,7 +316,7 @@ wrong_count = 0
 miss_count = 0
 
 with app.app_context():
-    detector._load_cards()
+    detector._load_cards(app)
     for fname in sample_files:
         img = cv2.imread(os.path.join(SAMPLES_DIR, fname))
         if img is None:
@@ -379,21 +358,31 @@ EXPECTED_FILES = [
     "data/questions.json",
     "data/database/card.data",
     "data/database/card.list",
+    "data/database/plickers.db",
     "src/__init__.py",
     "src/app.py",
     "src/core/__init__.py",
     "src/core/detector.py",
     "src/core/utils.py",
+    "src/core/models.py",
+    "src/core/db.py",
     "src/web/__init__.py",
-    "src/web/app_web.py",
-    "src/web/templates/teacher.html",
-    "src/web/templates/display.html",
+    "src/web/app.py",
+    "src/web/extensions.py",
+    "src/web/routes/auth_routes.py",
+    "src/web/routes/scanner_routes.py",
+    "src/web/routes/data_routes.py",
+    "src/web/services/camera_service.py",
+    "src/web/services/data_service.py",
+    "src/web/services/state.py",
     "src/scripts/__init__.py",
     "src/scripts/evaluate.py",
     "src/scripts/generate_db.py",
     "src/scripts/generate_pdf.py",
     "src/scripts/generate_plickers_pdf.py",
     "tests/test_plickers.py",
+    "frontend/package.json",
+    "frontend/src/pages/Login.tsx",
 ]
 
 for fpath in EXPECTED_FILES:

@@ -40,15 +40,20 @@ class PlickersDetector:
         self.card_list = []
         self._cards_loaded = False
 
-    def _load_cards(self) -> None:
+    def _load_cards(self, app=None) -> None:
         """
         Load cards from database (lazy loading).
         """
         if not self._cards_loaded:
             try:
-                # Try to get the app context
-                from src.web.app_web import app
-                with app.app_context():
+                # Try to use provided app, or get from create_app
+                if app:
+                    use_app = app
+                else:
+                    from src.web.app import create_app
+                    use_app = create_app()
+                    
+                with use_app.app_context():
                     self.card_data, self.card_list = load_all_cards()
                 logger.info(f"Loaded {len(self.card_data)} card matrices from SQLite database")
                 self._cards_loaded = True
