@@ -54,13 +54,9 @@ SSE_INTERVAL = 0.4  # seconds - Server-Sent Events update interval
 FRAME_QUALITY = 75  # JPEG quality for video stream
 
 # ─── File Paths ───────────────────────────────────────────────────────────────
-CLASS_JSON = os.path.join(DATA_DIR, "class.json")
-QUESTIONS_JSON = os.path.join(DATA_DIR, "questions.json")
 CARD_DATA = os.path.join(DATABASE_DIR, "card.data")
 CARD_LIST = os.path.join(DATABASE_DIR, "card.list")
-SQLITE_DB = os.path.join(DATABASE_DIR, "plickers.db")  # New SQLite database path
-DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{SQLITE_DB}")
-SCANNER_CSV = os.path.join(OUTPUT_DIR, "ket_qua.csv")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/plickers")
 
 # ─── Logging Settings ─────────────────────────────────────────────────────────
 LOG_LEVEL = "INFO"
