@@ -1,8 +1,8 @@
 import os
 from flask import Flask
 from src.config import FLASK_SECRET_KEY
-from src.core.db import init_db
-from src.web.extensions import bcrypt, login_manager
+from src.infrastructure.database import init_db
+from src.presentation.web.extensions import bcrypt, login_manager
 
 def create_app() -> Flask:
     app = Flask(__name__)
@@ -19,9 +19,9 @@ def create_app() -> Flask:
         init_db(app)
         
     # Register Blueprints
-    from src.web.routes.auth_routes import auth_bp
-    from src.web.routes.scanner_routes import scanner_bp
-    from src.web.routes.data_routes import data_bp
+    from src.presentation.web.routes.auth_routes import auth_bp
+    from src.presentation.web.routes.scanner_routes import scanner_bp
+    from src.presentation.web.routes.data_routes import data_bp
     
     app.register_blueprint(auth_bp)
     app.register_blueprint(scanner_bp)
