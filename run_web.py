@@ -3,7 +3,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from src.web.app import create_app
+from src.presentation.web.app import create_app
 from src.config import FLASK_HOST, FLASK_PORT, FLASK_DEBUG
 
 app = create_app()
