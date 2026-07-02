@@ -59,10 +59,16 @@ def api_state():
 def api_start():
     ensure_camera_started()
     data = request.json or {}
+    
+    from src.application.services.data_service import DataService
+    class_data = DataService.get_class_data(current_user.id)
+    name_cache = {str(s["card_no"]): s["name"] for s in class_data["students"]}
+    
     with state_lock:
         app_state["scanning"] = True
         app_state["question"] = data.get("question")
         app_state["results"] = {}
+        app_state["name_cache"] = name_cache
         app_state["revealed"] = False
         app_state["session_ts"] = datetime.now(timezone.utc).isoformat()
     return jsonify({"ok": True})

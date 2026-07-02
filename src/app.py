@@ -17,14 +17,13 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from src.core.detector import PlickersDetector
+from src.infrastructure.services.detector import PlickersDetector
 from src.config import (
     COOLDOWN_TIME,
     CAM_WIDTH,
     CAM_HEIGHT,
     CAM_FPS,
-    HUD_MAX_ROWS,
-    SCANNER_CSV
+    HUD_MAX_ROWS
 )
 
 # Windows-only sound (optional)

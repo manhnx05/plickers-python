@@ -3,11 +3,10 @@ import cv2
 import numpy as np
 import threading
 
-from src.core.detector import PlickersDetector
+from src.infrastructure.services.detector import PlickersDetector
 from src.config import CAM_WIDTH, CAM_HEIGHT, CAM_FPS, FRAME_QUALITY
-from src.web.services.state import state_lock, app_state, frame_lock
-import src.web.services.state as state_mod
-from src.web.services.data_service import get_student_name
+from src.presentation.web.services.state import state_lock, app_state, frame_lock
+import src.presentation.web.services.state as state_mod
 
 _detector = None
 _detector_lock = threading.Lock()
@@ -72,7 +71,8 @@ def _camera_worker() -> None:
 
                 try:
                     x, y, w, h = cv2.boundingRect(cnt)
-                    name = get_student_name(card_no_str)
+                    name_cache = app_state.get("name_cache", {})
+                    name = name_cache.get(card_no_str, f"HS #{card_no_str}")
                     cv2.putText(display, name, (x, max(y - 8, 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 200, 0), 2)
                 except Exception:
                     pass
