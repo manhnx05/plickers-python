@@ -1,6 +1,6 @@
 from flask_bcrypt import Bcrypt
 from flask_login import LoginManager
-from src.core.models import User
+from src.domain.models import User
 
 bcrypt = Bcrypt()
 login_manager = LoginManager()
