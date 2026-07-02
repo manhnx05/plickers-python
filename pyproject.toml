@@ -31,6 +31,7 @@ dependencies = [
     "scipy>=1.7.0",
     "reportlab>=3.6.0",
     "flask>=2.0.0",
+    "psycopg2-binary>=2.9.9",
 ]
 
 [project.optional-dependencies]
