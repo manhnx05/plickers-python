@@ -15,8 +15,8 @@ project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from src.config import SQLITE_DB, DATABASE_DIR, DATABASE_URL
-from src.core.models import db, Card, User, Class, Student, Question, ScanSession, ScanResult, PasswordResetToken
+from src.config import DATABASE_DIR, DATABASE_URL
+from src.domain.models import db, Card, User, Class, Student, Question, ScanSession, ScanResult, PasswordResetToken
 
 
 def init_db(app) -> None:
@@ -24,8 +24,8 @@ def init_db(app) -> None:
     Initialize SQLAlchemy database and create all tables.
     """
     os.makedirs(DATABASE_DIR, exist_ok=True)
-    # Ensure we use the correct SQLite path
-    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{SQLITE_DB}"
+    # Ensure we use PostgreSQL URL
+    app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     
     # Only initialize if not already initialized
